@@ -28,6 +28,7 @@
         'zrender/graphic/shape/BezierCurve',
         'zrender/graphic/shape/Polyline',
         'zrender/graphic/shape/Polygon',
+        'zrender/graphic/shape/Arrow',
         'zrender/container/Group',
         'zrender/vml/vml'
     ],

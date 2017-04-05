@@ -3126,19 +3126,21 @@ define('zrender/tool/color',['require','../core/LRU'],function(require) {
     }
 
     /**
-     * Map value to color. Faster than mapToColor methods because color is represented by rgba array
+     * Map value to color. Faster than mapToColor methods because color is represented by rgba array.
      * @param {number} normalizedValue A float between 0 and 1.
      * @param {Array.<Array.<number>>} colors List of rgba color array
      * @param {Array.<number>} [out] Mapped gba color array
-     * @return {Array.<number>}
+     * @return {Array.<number>} will be null/undefined if input illegal.
      */
     function fastMapToColor(normalizedValue, colors, out) {
-        out = out || [0, 0, 0, 0];
         if (!(colors && colors.length)
             || !(normalizedValue >= 0 && normalizedValue <= 1)
         ) {
-            return out;
+            return;
         }
+
+        out = out || [];
+
         var value = normalizedValue * (colors.length - 1);
         var leftIndex = Math.floor(value);
         var rightIndex = Math.ceil(value);
@@ -3149,6 +3151,7 @@ define('zrender/tool/color',['require','../core/LRU'],function(require) {
         out[1] = clampCssByte(lerp(leftColor[1], rightColor[1], dv));
         out[2] = clampCssByte(lerp(leftColor[2], rightColor[2], dv));
         out[3] = clampCssFloat(lerp(leftColor[3], rightColor[3], dv));
+
         return out;
     }
     /**
@@ -3230,12 +3233,12 @@ define('zrender/tool/color',['require','../core/LRU'],function(require) {
     }
 
     /**
-     * @param {Array.<string>} colors Color list.
+     * @param {Array.<number>} arrColor like [12,33,44,0.4]
      * @param {string} type 'rgba', 'hsva', ...
      * @return {string} Result color. (If input illegal, return undefined).
      */
     function stringify(arrColor, type) {
-        if (!arrColor) {
+        if (!arrColor || !arrColor.length) {
             return;
         }
         var colorStr = arrColor[0] + ',' + arrColor[1] + ',' + arrColor[2];
@@ -13562,6 +13565,7 @@ define('zrender/graphic/helper/poly',['require','./smoothSpline','./smoothBezier
                         ctx.lineTo(points[i][0], points[i][1]);
                     }
                 }
+
                 closePath && ctx.closePath();
             }
         }
@@ -13594,48 +13598,6 @@ define('zrender/graphic/shape/Polyline',['require','../helper/poly','../Path'],f
 
         buildPath: function (ctx, shape) {
             polyHelper.buildPath(ctx, shape, false);
-            drawAngle(ctx, shape.points);
-            function drawAngle(ctx, points){
-                var context = ctx.getContext();
-                var CONST = {
-                    edgeLen: 50,
-                    angle: 25
-                    },
-                    end = points[points.length-1],
-                    endPre = points[points.length-2],
-                    x = end[0] - endPre[0],
-                    y = end[1] - endPre[1],
-                    length = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
-
-                if(length < 250) {
-                    CONST.edgeLen = CONST.edgeLen/2;
-                    CONST.angle/2;
-                } else if (length < 500) {
-                    CONST.edgeLen = CONST.edgeLen * length / 500;
-                    CONST.angle = CONST.angle * length / 500;
-                }
-
-                var angle = Math.atan2(end[1] - endPre[1], end[0] - endPre[0]) / Math.PI * 180;
-
-                var arrowpoints = [];
-                arrowpoints[0] = end[0] - CONST.edgeLen * Math.cos(Math.PI / 180 * (angle - CONST.angle));
-                arrowpoints[1] = end[1] - CONST.edgeLen * Math.sin(Math.PI / 180 * (angle - CONST.angle));
-                arrowpoints[2] = end[0];
-                arrowpoints[3] = end[1];
-                arrowpoints[4] = end[0] - CONST.edgeLen * Math.cos(Math.PI / 180 * (angle + CONST.angle));
-                arrowpoints[5] = end[1] - CONST.edgeLen * Math.sin(Math.PI / 180 * (angle + CONST.angle));
-                if(context){
-                    context.save();
-                    context.beginPath();
-                    context.lineTo(arrowpoints[0], arrowpoints[1]);
-                    context.lineTo(arrowpoints[2], arrowpoints[3]);
-                    context.lineTo(arrowpoints[4], arrowpoints[5]);
-                    context.lineTo(arrowpoints[0], arrowpoints[1]);
-                    context.closePath();
-                    context.fill();
-                    context.restore();
-                }
-            }
         }
     });
 });
@@ -13664,6 +13626,62 @@ define('zrender/graphic/shape/Polygon',['require','../helper/poly','../Path'],fu
         }
     });
 });
+/**
+ * 箭头
+ * @module zrender/graphic/shape/Arrow
+ */
+
+define('zrender/graphic/shape/Arrow',['require','../Path'],function (require) {
+    
+
+    return require('../Path').extend({
+
+        type: 'arrow',
+
+        shape: {
+            points: [],
+            angle: 15,
+            edgeLen: 50
+        },
+
+        buildPath : function (ctx, shape, inBundle) {
+            var points = shape.points;
+            var CONST = {
+                edgeLen: shape.edgeLen || 50,
+                angle: shape.angle || 25
+                },
+                end = points[1],
+                endPre = points[0],
+                x = end[0] - endPre[0],
+                y = end[1] - endPre[1],
+                length = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
+
+            if(length < 250) {
+                CONST.edgeLen = CONST.edgeLen/2;
+                CONST.angle/2;
+            } else if (length < 500) {
+                CONST.edgeLen = CONST.edgeLen * length / 500;
+                CONST.angle = CONST.angle * length / 500;
+            }
+
+            var angle = Math.atan2(end[1] - endPre[1], end[0] - endPre[0]) / Math.PI * 180;
+
+            var arrowpoints = [];
+            arrowpoints[0] = end[0] - CONST.edgeLen * Math.cos(Math.PI / 180 * (angle - CONST.angle));
+            arrowpoints[1] = end[1] - CONST.edgeLen * Math.sin(Math.PI / 180 * (angle - CONST.angle));
+            arrowpoints[2] = end[0];
+            arrowpoints[3] = end[1];
+            arrowpoints[4] = end[0] - CONST.edgeLen * Math.cos(Math.PI / 180 * (angle + CONST.angle));
+            arrowpoints[5] = end[1] - CONST.edgeLen * Math.sin(Math.PI / 180 * (angle + CONST.angle));
+            ctx.lineTo(arrowpoints[0], arrowpoints[1]);
+            ctx.lineTo(arrowpoints[2], arrowpoints[3]);
+            ctx.lineTo(arrowpoints[4], arrowpoints[5]);
+            ctx.lineTo(arrowpoints[0], arrowpoints[1]);
+            ctx.closePath();
+        }
+    });
+});
+
 define('zrender/graphic/Gradient',['require'],function (require) {
 
     /**

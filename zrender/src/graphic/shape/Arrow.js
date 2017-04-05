@@ -1,5 +1,5 @@
 /**
- * 圆形
+ * 箭头
  * @module zrender/graphic/shape/Arrow
  */
 
@@ -8,7 +8,7 @@ define(function (require) {
 
     return require('../Path').extend({
 
-        type: 'circle',
+        type: 'arrow',
 
         shape: {
             points: [],
