@@ -1,0 +1,36 @@
+{
+  "name": "flowchart",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mc-tangb/flowchart.git"
+  },
+  "keywords": [
+    "flowchart"
+  ],
+  "author": "tangb",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mc-tangb/flowchart/issues"
+  },
+  "homepage": "https://github.com/mc-tangb/flowchart#readme",
+  "devDependencies": {
+    "figures": "^2.0.0",
+    "number-is-nan": "^1.0.1",
+    "chalk": "^1.1.3",
+    "date-time": "^1.1.0",
+    "grunt": "^1.0.1",
+    "grunt-contrib-connect": "^1.0.2",
+    "grunt-contrib-watch": "^1.0.0",
+    "hooker": "^0.2.3",
+    "load-grunt-tasks": "^3.5.2",
+    "pretty-ms": "^2.1.0",
+    "text-table": "^0.2.0",
+    "time-grunt": "^1.4.0"
+  }
+}
