@@ -20,27 +20,26 @@
 <script type="text/javascript" src="../src/lib/require.js"></script>
 <script type="text/javascript" src="../src/lib/zrender.js"></script>
 <script type="text/javascript">
-require([
-            "zrender",
+define('TaskBlock',[
             'zrender/graphic/shape/Polygon',
             'zrender/graphic/shape/Rect',
             'zrender/graphic/shape/Circle',
             'zrender/container/Group',
             'zrender/graphic/Text'
         ], 
-function (zrender, Polygon, Rect, Circle, Group, ZText) {
-	var zr = zrender.init(document.getElementById("main"));
+function (Polygon, Rect, Circle, Group, ZText) {
 	var radius = 5; // 矩形周围的线柱半径
 	var width = 100; // 矩形的宽
     var height = 60; // 矩形的高
     var r = 4; // 矩形的圆角半径
     var x = 100; // 矩形的起始x
     var y = 100; // 矩形的起始y
+    /*
 	var rect = new Rect({
 		shape: {
             r: r,
-            x: 100,
-            y: 100,
+            x: x,
+            y: y,
             width: width,
             height: height
         },
@@ -87,8 +86,95 @@ function (zrender, Polygon, Rect, Circle, Group, ZText) {
 		}
 		zr.refresh();
 	})
-	console.log(rect.fresh);
 	zr.add(rect);
+	*/
+
+
+
+
+
+	/*
+		zr: zrender对象
+		opt: {
+			radius: 3,
+			width: 100,
+			height: 60,
+			r: 4,
+			x: 100,
+			y: 100,
+		}
+	*/
+	function TaskBlock (zr, opt) {
+		this._zr = zr;
+		this._init();
+	}
+
+	TaskBlock.prototype = {
+		_init: function() {
+			var group = new Group();
+			var rect = new Rect({
+				shape: {
+		            r: r,
+		            x: x,
+		            y: y,
+		            width: width,
+		            height: height
+		        },
+		        draggable: true
+			});
+			var rectCaps = [];
+			var rectCapsPos = function (x, y) {
+				var arr = [];
+				arr.push({
+					x: x + width/2,
+					y: y - radius - 3,
+				});
+				arr.push({
+					x: x + width + radius + 3 ,
+					y: y + height/2,
+				});
+				arr.push({
+					x: x + width/2,
+					y: y + height + radius + 3,
+				});
+				arr.push({
+					x: x - radius - 3,
+					y: y + height/2,
+				});
+				return arr;
+			};
+			for(var i=0,arr=rectCapsPos(x, y);i<arr.length;i++){
+				var circle = new Circle({
+					shape:{
+						cx: arr[i].x,
+			            cy: arr[i].y,
+			            r: radius
+			        }
+				});
+				group.add(circle);
+				rectCaps.push(circle);
+			}
+			rect.on('drag', function(){
+				/*
+				var curPositon = this.position,
+					orignPosition = [this.shape.x, this.shape.y];
+				var postion = [orignPosition[0] + curPositon[0], orignPosition[1] + curPositon[1], this.shape.width, this.shape.height];
+				*/
+				for(var i=0;i<rectCaps.length;i++){
+					rectCaps[i].transform = this.transform;
+				}
+			})
+			group.add(rect);
+			this._zr.add(group);
+		}
+	}
+	return TaskBlock;
+})
+
+require(['zrender','TaskBlock'], function(zrender, TaskBlock) {
+	var zr = zrender.init(document.getElementById("main"));
+	var task1 = new TaskBlock(zr);
+	var task2 = new TaskBlock(zr);
 })
 </script>
 </body>
