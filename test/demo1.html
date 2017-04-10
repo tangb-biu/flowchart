@@ -25,100 +25,39 @@ define('TaskBlock',[
             'zrender/graphic/shape/Rect',
             'zrender/graphic/shape/Circle',
             'zrender/container/Group',
-            'zrender/graphic/Text'
+            'zrender/graphic/Text',
+            'zrender/core/util'
         ], 
-function (Polygon, Rect, Circle, Group, ZText) {
-	var radius = 5; // 矩形周围的线柱半径
-	var width = 100; // 矩形的宽
-    var height = 60; // 矩形的高
-    var r = 4; // 矩形的圆角半径
-    var x = 100; // 矩形的起始x
-    var y = 100; // 矩形的起始y
-    /*
-	var rect = new Rect({
-		shape: {
-            r: r,
-            x: x,
-            y: y,
-            width: width,
-            height: height
-        },
-        draggable: true
-	});
-	var rectCaps = [];
-	var rectCapsPos = function (x, y) {
-		var arr = [];
-		arr.push({
-			x: x + width/2,
-			y: y - radius - 3,
-		});
-		arr.push({
-			x: x + width + radius + 3 ,
-			y: y + height/2,
-		});
-		arr.push({
-			x: x + width/2,
-			y: y + height + radius + 3,
-		});
-		arr.push({
-			x: x - radius - 3,
-			y: y + height/2,
-		});
-		return arr;
-	};
-	for(var i=0,arr=rectCapsPos(x, y);i<arr.length;i++){
-		var circle = new Circle({
-			shape:{
-				cx: arr[i].x,
-	            cy: arr[i].y,
-	            r: radius
-	        }
-		});
-		zr.add(circle);
-		rectCaps.push(circle);
-	}
-	rect.on('drag', function(){
-		var curPositon = this.position,
-			orignPosition = [this.shape.x, this.shape.y];
-		var postion = [orignPosition[0] + curPositon[0], orignPosition[1] + curPositon[1], this.shape.width, this.shape.height];
-		for(var i=0;i<rectCaps.length;i++){
-			rectCaps[i].transform = this.transform;//[1,0,0,1].concat(curPositon);
-		}
-		zr.refresh();
-	})
-	zr.add(rect);
-	*/
-
-
-
-
-
-	/*
-		zr: zrender对象
-		opt: {
-			radius: 3,
-			width: 100,
-			height: 60,
-			r: 4,
-			x: 100,
-			y: 100,
-		}
-	*/
+function (Polygon, Rect, Circle, Group, ZText, util) {
+	
 	function TaskBlock (zr, opt) {
 		this._zr = zr;
-		this._init();
+		this._init(opt);
 	}
 
 	TaskBlock.prototype = {
-		_init: function() {
+		_init: function(opt) {
+			var source = {
+				radius: 5, // 矩形周围的线柱半径
+				width: 100, // 矩形的宽
+			    height: 60, // 矩形的高
+			    r: 4, // 矩形的圆角半径
+			    x: 100, // 矩形的起始x
+			    y: 100 // 矩形的起始y
+			}
+			if(!opt){
+				opt = source;
+			}else{
+				util.extend(source, opt);
+			}
 			var group = new Group();
 			var rect = new Rect({
 				shape: {
-		            r: r,
-		            x: x,
-		            y: y,
-		            width: width,
-		            height: height
+		            r: source.r,
+		            x: source.x,
+		            y: source.y,
+		            width: source.width,
+		            height: source.height
 		        },
 		        draggable: true
 			});
@@ -126,29 +65,29 @@ function (Polygon, Rect, Circle, Group, ZText) {
 			var rectCapsPos = function (x, y) {
 				var arr = [];
 				arr.push({
-					x: x + width/2,
-					y: y - radius - 3,
+					x: source.x + source.width/2,
+					y: source.y - source.radius - 3,
 				});
 				arr.push({
-					x: x + width + radius + 3 ,
-					y: y + height/2,
+					x: source.x + source.width + source.radius + 3 ,
+					y: source.y + source.height/2,
 				});
 				arr.push({
-					x: x + width/2,
-					y: y + height + radius + 3,
+					x: source.x + source.width/2,
+					y: source.y + source.height + source.radius + 3,
 				});
 				arr.push({
-					x: x - radius - 3,
-					y: y + height/2,
+					x: source.x - source.radius - 3,
+					y: source.y + source.height/2,
 				});
 				return arr;
 			};
-			for(var i=0,arr=rectCapsPos(x, y);i<arr.length;i++){
+			for(var i=0,arr=rectCapsPos(source.x, source.y);i<arr.length;i++){
 				var circle = new Circle({
 					shape:{
 						cx: arr[i].x,
 			            cy: arr[i].y,
-			            r: radius
+			            r: source.radius
 			        }
 				});
 				group.add(circle);
@@ -166,15 +105,50 @@ function (Polygon, Rect, Circle, Group, ZText) {
 			})
 			group.add(rect);
 			this._zr.add(group);
+			this._rectCaps = rectCaps;
+			this._rect = rect;
+		},
+		getPointObj: function() {
+			return this._rectCaps;
+		},
+		getRect: function() {
+			return this._rect;
 		}
 	}
 	return TaskBlock;
 })
 
-require(['zrender','TaskBlock'], function(zrender, TaskBlock) {
+require(['zrender','TaskBlock', 'zrender/graphic/shape/Polyline'], function(zrender, TaskBlock, Polyline) {
 	var zr = zrender.init(document.getElementById("main"));
-	var task1 = new TaskBlock(zr);
-	var task2 = new TaskBlock(zr);
+	var task1 = new TaskBlock(zr, {x: 100, y: 100});
+	var task2 = new TaskBlock(zr, {x: 600, y: 200});
+
+	var points1 = task1.getPointObj();
+
+	var points2 = task2.getPointObj();
+
+	var start = points1[1];
+	var end = points2[3];
+
+	var pline = new Polyline({
+		shape: {
+			points: [[start.shape.cx, start.shape.cy], [end.shape.cx, end.shape.cy]],
+		}
+	})
+	start.pline = pline;
+	var rect = task1.getRect();
+	rect.on('drag', function(){
+		var pline = new Polyline({
+			shape: {
+				points: [[start.shape.cx + start.transform[4] , start.shape.cy + start.transform[5]], [end.shape.cx, end.shape.cy]],
+			}
+		})
+		zr.remove(start.pline);
+		zr.add(pline);
+		start.pline = pline;
+
+	})
+	zr.add(pline);
 })
 </script>
 </body>
