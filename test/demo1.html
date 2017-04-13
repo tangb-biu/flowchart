@@ -90,9 +90,14 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 			            r: source.radius
 			        }
 				});
+				circle.on('drag', function(e){
+					console.log(this);
+					console.log(e);
+				})
 				group.add(circle);
 				rectCaps.push(circle);
 			}
+
 			rect.on('drag', function(){
 				/*
 				var curPositon = this.position,
@@ -101,6 +106,7 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 				*/
 				for(var i=0;i<rectCaps.length;i++){
 					rectCaps[i].transform = this.transform;
+					rectCaps[i].point = [this.transform[4] + rectCaps[i].shape.cx, this.transform[4] + rectCaps[i].shape.cy];
 				}
 			})
 			group.add(rect);
@@ -136,7 +142,11 @@ require(['zrender','TaskBlock', 'zrender/graphic/shape/Polyline'], function(zren
 		}
 	})
 	start.pline = pline;
-	var rect = task1.getRect();
+	var rect1 = task1.getRect();
+	var rect2 = task2.getRect();
+
+
+	/*
 	rect.on('drag', function(){
 		var pline = new Polyline({
 			shape: {
@@ -147,6 +157,31 @@ require(['zrender','TaskBlock', 'zrender/graphic/shape/Polyline'], function(zren
 		zr.add(pline);
 		start.pline = pline;
 
+	})
+	*/
+
+	rect1.on("drag", function () {
+		
+		var point1 = task1.getPointObj()[1];
+		var point2 = task2.getPointObj()[3];
+
+		var x1 = (point1.transform ? point1.transform[4] : 0) + point1.shape.cx;
+		var y1 = (point1.transform ? point1.transform[5] : 0) + point1.shape.cy;
+		var x2 = (point2.transform ? point2.transform[4] : 0) + point2.shape.cx;
+		var y2 = (point2.transform ? point2.transform[5] : 0) + point2.shape.cy;
+		pline.setShape('points', [[x1, y1], [x2, y2]]);
+	})
+
+	rect2.on("drag", function () {
+
+		var point1 = task1.getPointObj()[1];
+		var point2 = task2.getPointObj()[3];
+
+		var x1 = (point1.transform ? point1.transform[4] : 0) + point1.shape.cx;
+		var y1 = (point1.transform ? point1.transform[5] : 0) + point1.shape.cy;
+		var x2 = (point2.transform ? point2.transform[4] : 0) + point2.shape.cx;
+		var y2 = (point2.transform ? point2.transform[5] : 0) + point2.shape.cy;
+		pline.setShape('points', [[x1, y1], [x2, y2]]);
 	})
 	zr.add(pline);
 })
