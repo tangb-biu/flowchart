@@ -44,7 +44,8 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 			    r: 4, // 矩形的圆角半径
 			    x: 100, // 矩形的起始x
 			    y: 100 // 矩形的起始y
-			}
+			};
+			var that = this;
 			if(!opt){
 				opt = source;
 			}else{
@@ -94,6 +95,7 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 					console.log(this);
 					console.log(e);
 				})
+				circle.shape_cp = util.clone(circle.shape);
 				group.add(circle);
 				rectCaps.push(circle);
 			}
@@ -104,10 +106,17 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 					orignPosition = [this.shape.x, this.shape.y];
 				var postion = [orignPosition[0] + curPositon[0], orignPosition[1] + curPositon[1], this.shape.width, this.shape.height];
 				*/
+				console.log(this);
 				for(var i=0;i<rectCaps.length;i++){
-					rectCaps[i].transform = this.transform;
-					rectCaps[i].point = [this.transform[4] + rectCaps[i].shape.cx, this.transform[4] + rectCaps[i].shape.cy];
+					//rectCaps[i].transform = this.transform;
+					//rectCaps[i].point = [this.transform[4] + rectCaps[i].shape.cx, this.transform[5] + rectCaps[i].shape.cy];
+					var a = this.transform[4] + rectCaps[i].shape.cx;
+					console.log(a);
+					rectCaps[i].setShape('cx', this.transform[4] + rectCaps[i].shape_cp.cx);
+					rectCaps[i].setShape('cy', this.transform[5] + rectCaps[i].shape_cp.cy);
+
 				}
+				//that._zr.refresh();
 			})
 			group.add(rect);
 			this._zr.add(group);
@@ -124,7 +133,7 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 	return TaskBlock;
 })
 
-require(['zrender','TaskBlock', 'zrender/graphic/shape/Polyline'], function(zrender, TaskBlock, Polyline) {
+require(['zrender','TaskBlock', 'zrender/graphic/shape/Polyline', 'zrender/core/util'], function(zrender, TaskBlock, Polyline, util) {
 	var zr = zrender.init(document.getElementById("main"));
 	var task1 = new TaskBlock(zr, {x: 100, y: 100});
 	var task2 = new TaskBlock(zr, {x: 600, y: 200});
@@ -132,6 +141,63 @@ require(['zrender','TaskBlock', 'zrender/graphic/shape/Polyline'], function(zren
 	var points1 = task1.getPointObj();
 
 	var points2 = task2.getPointObj();
+
+	var lineCache = {
+		start: null,
+		end: null,
+		status: false, //判断鼠标是否按下
+		context: null // 容器
+	};
+	zr.on("mousemove", function (e) {
+		if( lineCache.status ) {
+
+		}
+	})
+	zr.on("mouseup", function (e) {
+		lineCache.status = false;
+	})
+	/* 点的拖动 start */
+	util.each(points1, function(point) {
+		point.on("mousedown", function(e) {
+			lineCache.start = point;
+			lineCache.status = true;
+			lineCache.context = task1;
+		})
+		
+		point.on("mouseup", function(e) {
+			if(lineCache.status && lineCache.context != task1) {				
+				lineCache.end = point;
+				console.log(lineCache);
+				drawLine(lineCache);
+			}
+		})
+	})
+	util.each(points2, function(point) {
+		point.on("mousedown", function(e) {
+			lineCache.start = point;
+			lineCache.status = true;
+			lineCache.context = task2;
+		})
+		
+		point.on("mouseup", function(e) {
+			if(lineCache.status && lineCache.context != task2) {				
+				lineCache.end = point;
+				console.log(lineCache);
+				drawLine(lineCache);
+			}
+		})
+	})
+
+	function drawLine (lineCache) {
+
+		var pline = new Polyline({
+			shape: {
+				points: [[lineCache.start.shape.cx + lineCache.start.position[0], lineCache.start.shape.cy + lineCache.start.position[1]], [lineCache.end.shape.cx + lineCache.end.position[0], lineCache.end.shape.cy + lineCache.end.position[1]]],
+			}
+		})
+		zr.add(pline);
+	}
+	/* 点的拖动 end */
 
 	var start = points1[1];
 	var end = points2[3];
@@ -183,6 +249,7 @@ require(['zrender','TaskBlock', 'zrender/graphic/shape/Polyline'], function(zren
 		var y2 = (point2.transform ? point2.transform[5] : 0) + point2.shape.cy;
 		pline.setShape('points', [[x1, y1], [x2, y2]]);
 	})
+
 	zr.add(pline);
 })
 </script>
