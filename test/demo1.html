@@ -91,6 +91,7 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 			            r: source.radius
 			        }
 				});
+				circle.follow = rect;
 				circle.on('drag', function(e){
 					console.log(this);
 					console.log(e);
@@ -136,23 +137,19 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 require(['zrender','TaskBlock', 'zrender/graphic/shape/Polyline', 'zrender/core/util'], function(zrender, TaskBlock, Polyline, util) {
 	var zr = zrender.init(document.getElementById("main"));
 	var task1 = new TaskBlock(zr, {x: 100, y: 100});
-	var task2 = new TaskBlock(zr, {x: 600, y: 200});
-
+	var task2 = new TaskBlock(zr, {x: 400, y: 150});
+	var task3 = new TaskBlock(zr, {x: 700, y: 100});
 	var points1 = task1.getPointObj();
 
 	var points2 = task2.getPointObj();
+
+	var points3 = task3.getPointObj();
 
 	var lineCache = {
 		start: null,
 		end: null,
 		status: false, //判断鼠标是否按下
-		context: null // 容器
 	};
-	zr.on("mousemove", function (e) {
-		if( lineCache.status ) {
-
-		}
-	})
 	zr.on("mouseup", function (e) {
 		lineCache.status = false;
 	})
@@ -161,14 +158,12 @@ require(['zrender','TaskBlock', 'zrender/graphic/shape/Polyline', 'zrender/core/
 		point.on("mousedown", function(e) {
 			lineCache.start = point;
 			lineCache.status = true;
-			lineCache.context = task1;
 		})
 		
 		point.on("mouseup", function(e) {
 			if(lineCache.status && lineCache.context != task1) {				
 				lineCache.end = point;
-				console.log(lineCache);
-				drawLine(lineCache);
+				drawLine(util.copy(ineCache));
 			}
 		})
 	})
@@ -176,40 +171,70 @@ require(['zrender','TaskBlock', 'zrender/graphic/shape/Polyline', 'zrender/core/
 		point.on("mousedown", function(e) {
 			lineCache.start = point;
 			lineCache.status = true;
-			lineCache.context = task2;
 		})
 		
 		point.on("mouseup", function(e) {
 			if(lineCache.status && lineCache.context != task2) {				
 				lineCache.end = point;
-				console.log(lineCache);
-				drawLine(lineCache);
+				drawLine(lineCache.start, lineCache.end);
 			}
 		})
 	})
 
-	function drawLine (lineCache) {
+	util.each(points3, function(point) {
+		point.on("mousedown", function(e) {
+			lineCache.start = point;
+			lineCache.status = true;
+		})
+		
+		point.on("mouseup", function(e) {
+			if(lineCache.status && lineCache.context != task2) {				
+				lineCache.end = point;
+				drawLine(lineCache.start, lineCache.end);
+			}
+		})
+	})
+
+	function drawLine (start, end) {
 
 		var pline = new Polyline({
 			shape: {
-				points: [[lineCache.start.shape.cx + lineCache.start.position[0], lineCache.start.shape.cy + lineCache.start.position[1]], [lineCache.end.shape.cx + lineCache.end.position[0], lineCache.end.shape.cy + lineCache.end.position[1]]],
+				points: [[start.shape.cx + start.position[0], start.shape.cy + start.position[1]], [end.shape.cx + end.position[0], end.shape.cy + end.position[1]]],
 			}
 		})
+		start.follow.on('drag', function(){
+			var x1 = start.position[0] + start.shape.cx;
+			var y1 = start.position[1] + start.shape.cy;
+			var points = pline.shape.points;
+			points[0] = [x1, y1];
+			pline.setShape('points', points);
+		})
+		end.follow.on('drag', function(){
+			var x1 = (end.transform ? end.transform[4] : 0) + end.shape.cx;
+			var y1 = (end.transform ? end.transform[5] : 0) + end.shape.cy;
+			var points = pline.shape.points;
+			points[1] = [x1, y1];
+			pline.setShape('points', points);
+		})
+		// pline.on('contextmenu', function(){
+		// 	zr.remove(pline);
+		// 	zr.refresh();
+		// })
 		zr.add(pline);
 	}
 	/* 点的拖动 end */
 
-	var start = points1[1];
-	var end = points2[3];
+	// var start = points1[1];
+	// var end = points2[3];
 
-	var pline = new Polyline({
-		shape: {
-			points: [[start.shape.cx, start.shape.cy], [end.shape.cx, end.shape.cy]],
-		}
-	})
-	start.pline = pline;
-	var rect1 = task1.getRect();
-	var rect2 = task2.getRect();
+	// var pline = new Polyline({
+	// 	shape: {
+	// 		points: [[start.shape.cx, start.shape.cy], [end.shape.cx, end.shape.cy]],
+	// 	}
+	// })
+	// start.pline = pline;
+	// var rect1 = task1.getRect();
+	// var rect2 = task2.getRect();
 
 
 	/*
@@ -226,31 +251,31 @@ require(['zrender','TaskBlock', 'zrender/graphic/shape/Polyline', 'zrender/core/
 	})
 	*/
 
-	rect1.on("drag", function () {
+	// rect1.on("drag", function () {
 		
-		var point1 = task1.getPointObj()[1];
-		var point2 = task2.getPointObj()[3];
+	// 	var point1 = task1.getPointObj()[1];
+	// 	var point2 = task2.getPointObj()[3];
 
-		var x1 = (point1.transform ? point1.transform[4] : 0) + point1.shape.cx;
-		var y1 = (point1.transform ? point1.transform[5] : 0) + point1.shape.cy;
-		var x2 = (point2.transform ? point2.transform[4] : 0) + point2.shape.cx;
-		var y2 = (point2.transform ? point2.transform[5] : 0) + point2.shape.cy;
-		pline.setShape('points', [[x1, y1], [x2, y2]]);
-	})
+	// 	var x1 = (point1.transform ? point1.transform[4] : 0) + point1.shape.cx;
+	// 	var y1 = (point1.transform ? point1.transform[5] : 0) + point1.shape.cy;
+	// 	var x2 = (point2.transform ? point2.transform[4] : 0) + point2.shape.cx;
+	// 	var y2 = (point2.transform ? point2.transform[5] : 0) + point2.shape.cy;
+	// 	pline.setShape('points', [[x1, y1], [x2, y2]]);
+	// })
 
-	rect2.on("drag", function () {
+	// rect2.on("drag", function () {
 
-		var point1 = task1.getPointObj()[1];
-		var point2 = task2.getPointObj()[3];
+	// 	var point1 = task1.getPointObj()[1];
+	// 	var point2 = task2.getPointObj()[3];
 
-		var x1 = (point1.transform ? point1.transform[4] : 0) + point1.shape.cx;
-		var y1 = (point1.transform ? point1.transform[5] : 0) + point1.shape.cy;
-		var x2 = (point2.transform ? point2.transform[4] : 0) + point2.shape.cx;
-		var y2 = (point2.transform ? point2.transform[5] : 0) + point2.shape.cy;
-		pline.setShape('points', [[x1, y1], [x2, y2]]);
-	})
+	// 	var x1 = (point1.transform ? point1.transform[4] : 0) + point1.shape.cx;
+	// 	var y1 = (point1.transform ? point1.transform[5] : 0) + point1.shape.cy;
+	// 	var x2 = (point2.transform ? point2.transform[4] : 0) + point2.shape.cx;
+	// 	var y2 = (point2.transform ? point2.transform[5] : 0) + point2.shape.cy;
+	// 	pline.setShape('points', [[x1, y1], [x2, y2]]);
+	// })
 
-	zr.add(pline);
+	// zr.add(pline);
 })
 </script>
 </body>
