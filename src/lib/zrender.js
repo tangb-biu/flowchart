@@ -12634,6 +12634,8 @@ define('zrender/graphic/shape/Circle',['require','../Path'],function (require) {
 
         type: 'circle',
 
+        dir: '', //top, right, bottom, left
+
         shape: {
             cx: 0,
             cy: 0,
