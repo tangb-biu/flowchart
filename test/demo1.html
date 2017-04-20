@@ -96,6 +96,7 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 			        }
 				});
 				circle.dir = arr[i].dir;
+				circle.zlevel = 100;
 				circle.follow = rect;
 				circle.shape_cp = util.clone(circle.shape);
 				group.add(circle);
@@ -126,10 +127,21 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 })
 
 define('custom/action/lineTo', ['custom/shape/TaskBlock', 'zrender/graphic/shape/Polyline', 'zrender/core/util'], function(TaskBlock, Polyline, util) {
-	return function (zr, task, lineCache) { 
+	return function (zr, task, lineCache, helpLine) { 
 		zr.on("mouseup", function (e) {
+			helpLine.setShape('x1', 0);
+			helpLine.setShape('x2', 0);
+			helpLine.setShape('y1', 0);
+			helpLine.setShape('y2', 0);
 			lineCache.status = false;
-		})
+		});
+		
+		zr.on("mousemove", function(e) {
+			if(!lineCache.status) return;
+			helpLine.setShape('x2',e.offsetX);
+			helpLine.setShape('y2',e.offsetY);
+		});
+
 		var points = task.getPointObj();
 		/* 点的拖动 start */
 		util.each(points, function(point) {
@@ -137,6 +149,10 @@ define('custom/action/lineTo', ['custom/shape/TaskBlock', 'zrender/graphic/shape
 				lineCache.start = point;
 				lineCache.status = true;
 				lineCache.context = task;
+				helpLine.setShape('x1', point.shape.cx);
+				helpLine.setShape('x2', point.shape.cx);
+				helpLine.setShape('y1', point.shape.cy);
+				helpLine.setShape('y2', point.shape.cy);
 			})
 			
 			point.on("mouseup", function(e) {
@@ -144,9 +160,12 @@ define('custom/action/lineTo', ['custom/shape/TaskBlock', 'zrender/graphic/shape
 					lineCache.end = point;
 					drawLine(lineCache.start, lineCache.end);
 				}
+				helpLine.setShape('x1', 0);
+				helpLine.setShape('x2', 0);
+				helpLine.setShape('y1', 0);
+				helpLine.setShape('y2', 0);
 			})
 		})
-
 		function drawLine (start, end) {
 			var pline = new Polyline({
 				shape: {
@@ -172,9 +191,10 @@ define('custom/action/lineTo', ['custom/shape/TaskBlock', 'zrender/graphic/shape
 		/* 点的拖动 end */
 	}
 })
-require(['zrender', 'custom/shape/TaskBlock', 'custom/action/lineTo'],
-function (zrender, TaskBlock, lineTo){
+require(['zrender', 'zrender/graphic/shape/Line', 'custom/shape/TaskBlock', 'custom/action/lineTo'],
+function (zrender, Line, TaskBlock, lineTo){
 	var zr = zrender.init(document.getElementById("main"));
+	
 	var task1 = new TaskBlock(zr, {x: 100, y: 100});
 	var task2 = new TaskBlock(zr, {x: 300, y: 100});
 	var task3 = new TaskBlock(zr, {x: 700, y: 120});
@@ -185,10 +205,20 @@ function (zrender, TaskBlock, lineTo){
 		status: false, //判断鼠标是否按下
 		context: ''//父容器
 	};
+	// 辅助线
+	var helpLine = new Line({
+		shape:{
+			x1: 0,
+			y1: 0,
+			x2: 0,
+			y2: 0
+		}
+	});
+	zr.add(helpLine);
 	// 开启连线
-	lineTo(zr, task1, lineCache);
-	lineTo(zr, task2, lineCache);
-	lineTo(zr, task3, lineCache);
+	lineTo(zr, task1, lineCache, helpLine);
+	lineTo(zr, task2, lineCache, helpLine);
+	lineTo(zr, task3, lineCache, helpLine);
 })
 </script>
 </body>
