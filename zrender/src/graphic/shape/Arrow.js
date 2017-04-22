@@ -12,8 +12,8 @@ define(function (require) {
 
         shape: {
             points: [],
-            angle: 15,
-            edgeLen: 50
+            angle: 10,
+            edgeLen: 30
         },
 
         buildPath : function (ctx, shape, inBundle) {
@@ -28,13 +28,8 @@ define(function (require) {
                 y = end[1] - endPre[1],
                 length = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
 
-            if(length < 250) {
-                CONST.edgeLen = CONST.edgeLen/2;
-                CONST.angle/2;
-            } else if (length < 500) {
-                CONST.edgeLen = CONST.edgeLen * length / 500;
-                CONST.angle = CONST.angle * length / 500;
-            }
+            CONST.edgeLen = CONST.edgeLen/2;
+            CONST.angle/2;
 
             var angle = Math.atan2(end[1] - endPre[1], end[0] - endPre[0]) / Math.PI * 180;
 

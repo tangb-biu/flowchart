@@ -179,7 +179,7 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 	return TaskBlock;
 })
 
-define('custom/action/lineTo', ['custom/shape/TaskBlock', 'zrender/graphic/shape/Polyline', 'zrender/core/util'], function(TaskBlock, Polyline, util) {
+define('custom/action/lineTo', ['custom/shape/TaskBlock', 'zrender/container/Group', 'zrender/graphic/shape/Polyline',  'zrender/graphic/shape/Arrow', 'zrender/core/util'], function(TaskBlock, Group, Polyline, Arrow, util) {
 	function LineTo(zr, task, lineCache, helpLine) {
 		this._init(zr, task, lineCache, helpLine);
 	}
@@ -194,17 +194,29 @@ define('custom/action/lineTo', ['custom/shape/TaskBlock', 'zrender/graphic/shape
 			this._initElement();
 		},
 		drawLine: function (start, end) {
+			var group = new Group();
 			var pline = new Polyline({
 				shape: {
 					points: [[start.shape.cx + start.position[0], start.shape.cy + start.position[1]], [end.shape.cx + end.position[0], end.shape.cy + end.position[1]]],
 				}
 			})
+			var len = pline.shape.points.length;
+			var arrow = new Arrow({
+				shape: {
+					points: pline.shape.points.slice(-2),
+					angle: 15,
+            		edgeLen: 40
+				}
+			});
+			group.add(pline);
+			group.add(arrow);
 			start.follow.on('drag', function(){
 				var x1 = start.position[0] + start.shape.cx;
 				var y1 = start.position[1] + start.shape.cy;
 				var points = pline.shape.points;
 				points[0] = [x1, y1];
 				pline.setShape('points', points);
+				arrow.setShape('points', points.slice(-2));
 			})
 			end.follow.on('drag', function(){
 				var x1 = end.position[0] + end.shape.cx;
@@ -212,8 +224,9 @@ define('custom/action/lineTo', ['custom/shape/TaskBlock', 'zrender/graphic/shape
 				var points = pline.shape.points;
 				points[1] = [x1, y1];
 				pline.setShape('points', points);
+				arrow.setShape('points', points.slice(-2));
 			})
-			this._zr.add(pline);
+			this._zr.add(group);
 		},
 		_initElement: function () {
 			var that = this;
@@ -259,36 +272,6 @@ define('custom/action/lineTo', ['custom/shape/TaskBlock', 'zrender/graphic/shape
 	}
 
 	return LineTo;
-	/*
-	return function (zr, task, lineCache, helpLine) { 
-		
-		function drawLine (start, end) {
-			var pline = new Polyline({
-				shape: {
-					points: [[start.shape.cx + start.position[0], start.shape.cy + start.position[1]], [end.shape.cx + end.position[0], end.shape.cy + end.position[1]]],
-				}
-			})
-			start.follow.on('drag', function(){
-				var x1 = start.position[0] + start.shape.cx;
-				var y1 = start.position[1] + start.shape.cy;
-				var points = pline.shape.points;
-				points[0] = [x1, y1];
-				pline.setShape('points', points);
-			})
-			end.follow.on('drag', function(){
-				var x1 = end.position[0] + end.shape.cx;
-				var y1 = end.position[1] + end.shape.cy;
-				var points = pline.shape.points;
-				points[1] = [x1, y1];
-				pline.setShape('points', points);
-			})
-			zr.add(pline);
-
-		}
-		// 点的拖动 end
-		console.log(this);
-	}
-	*/
 })
 require(['zrender', 'zrender/graphic/shape/Line', 'custom/shape/TaskBlock', 'custom/action/lineTo'],
 function (zrender, Line, TaskBlock, LineTo){
