@@ -40,28 +40,78 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 			var source = {
 				radius: 5, // 矩形周围的线柱半径
 				width: 100, // 矩形的宽
-			    height: 60, // 矩形的高
+			    height: 100, // 矩形的高
 			    r: 4, // 矩形的圆角半径
 			    x: 100, // 矩形的起始x
-			    y: 100 // 矩形的起始y
+			    y: 100, // 矩形的起始y
+			    start: false,
+			    end: false,
+			    style: {}
 			};
 			var that = this;
 			if(!opt){
-				opt = source;
+				//opt = source;
 			}else{
 				util.extend(source, opt);
 			}
 			var group = new Group();
-			var rect = new Rect({
-				shape: {
-		            r: source.r,
-		            x: source.x,
-		            y: source.y,
-		            width: source.width,
-		            height: source.height
-		        },
-		        draggable: true
-			});
+			var rect, child;
+			if(source.start) {
+				rect = new Polygon({
+					shape: {
+			            points: [
+			            	[source.x + source.width/2, source.y], 
+			            	[source.x + source.width, source.y + source.height/2],
+			            	[source.x + source.width/2, source.y + source.height],
+			            	[source.x, source.y + source.height/2]
+			            ],
+            			smooth: 'spline',
+			        },
+			        style: source.style,
+			        draggable: true,
+				});
+			} else if (source.end) {
+				rect = new Polygon({
+					shape: {
+			            points: [
+			            	[source.x + source.width/2, source.y], 
+			            	[source.x + source.width, source.y + source.height/2],
+			            	[source.x + source.width/2, source.y + source.height],
+			            	[source.x, source.y + source.height/2]
+			            ],
+            			smooth: 'spline',
+			        },
+			        style: source.style,
+			        draggable: true,
+				});
+			} else {
+				rect = new Rect({
+					shape: {
+			            r: source.r,
+			            x: source.x,
+			            y: source.y,
+			            width: source.width,
+			            height: source.height
+			        },
+			        style: source.style,
+			        draggable: true,
+				});
+				child = new Rect({
+					shape: {
+			            r: source.r,
+			            x: source.x,
+			            y: source.y,
+			            width: source.width,
+			            height: 20
+			        },
+			        style: {
+			        	fill: '#b9c7da',
+			        	stroke: '#333',
+			        	text: source.title,
+			        	textFill: '#000'
+			        },
+				})
+			}
 			var rectCaps = [];
 			var rectCapsPos = function (x, y) {
 				var arr = [];
@@ -93,6 +143,9 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 						cx: arr[i].x,
 			            cy: arr[i].y,
 			            r: source.radius
+			        },
+			        style: {
+			        	fill: !!(source.start || source.end ) ? '#7373f5' : '#735151'
 			        }
 				});
 				circle.dir = arr[i].dir;
@@ -102,16 +155,16 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 				group.add(circle);
 				rectCaps.push(circle);
 			}
-
 			rect.on('drag', function(){
+				if(child) child.transform = this.transform;
 				for(var i=0;i<rectCaps.length;i++){
-					var a = this.transform[4] + rectCaps[i].shape.cx;
-					rectCaps[i].setShape('cx', this.transform[4] + rectCaps[i].shape_cp.cx);
-					rectCaps[i].setShape('cy', this.transform[5] + rectCaps[i].shape_cp.cy);
+					rectCaps[i].setShape('cx', this.position[0] + rectCaps[i].shape_cp.cx);
+					rectCaps[i].setShape('cy', this.position[1] + rectCaps[i].shape_cp.cy);
 
 				}
 			})
 			group.add(rect);
+			group.add(child);
 			this._zr.add(group);
 			this._rectCaps = rectCaps;
 			this._rect = rect;
@@ -127,45 +180,88 @@ function (Polygon, Rect, Circle, Group, ZText, util) {
 })
 
 define('custom/action/lineTo', ['custom/shape/TaskBlock', 'zrender/graphic/shape/Polyline', 'zrender/core/util'], function(TaskBlock, Polyline, util) {
-	return function (zr, task, lineCache, helpLine) { 
-		zr.on("mouseup", function (e) {
-			helpLine.setShape('x1', 0);
-			helpLine.setShape('x2', 0);
-			helpLine.setShape('y1', 0);
-			helpLine.setShape('y2', 0);
-			lineCache.status = false;
-		});
-		
-		zr.on("mousemove", function(e) {
-			if(!lineCache.status) return;
-			helpLine.setShape('x2',e.offsetX);
-			helpLine.setShape('y2',e.offsetY);
-		});
+	function LineTo(zr, task, lineCache, helpLine) {
+		this._init(zr, task, lineCache, helpLine);
+	}
+	LineTo.prototype = {
+		constructor: LineTo,
 
-		var points = task.getPointObj();
-		/* 点的拖动 start */
-		util.each(points, function(point) {
-			point.on("mousedown", function(e) {
-				lineCache.start = point;
-				lineCache.status = true;
-				lineCache.context = task;
-				helpLine.setShape('x1', point.shape.cx);
-				helpLine.setShape('x2', point.shape.cx);
-				helpLine.setShape('y1', point.shape.cy);
-				helpLine.setShape('y2', point.shape.cy);
-			})
-			
-			point.on("mouseup", function(e) {
-				if(lineCache.status && lineCache.context != task) {				
-					lineCache.end = point;
-					drawLine(lineCache.start, lineCache.end);
+		_init: function(zr, task, lineCache, helpLine) {
+			this._zr = zr;
+			this._task = task;
+			this._lineCache = lineCache;
+			this._helpLine = helpLine;
+			this._initElement();
+		},
+		drawLine: function (start, end) {
+			var pline = new Polyline({
+				shape: {
+					points: [[start.shape.cx + start.position[0], start.shape.cy + start.position[1]], [end.shape.cx + end.position[0], end.shape.cy + end.position[1]]],
 				}
-				helpLine.setShape('x1', 0);
-				helpLine.setShape('x2', 0);
-				helpLine.setShape('y1', 0);
-				helpLine.setShape('y2', 0);
 			})
-		})
+			start.follow.on('drag', function(){
+				var x1 = start.position[0] + start.shape.cx;
+				var y1 = start.position[1] + start.shape.cy;
+				var points = pline.shape.points;
+				points[0] = [x1, y1];
+				pline.setShape('points', points);
+			})
+			end.follow.on('drag', function(){
+				var x1 = end.position[0] + end.shape.cx;
+				var y1 = end.position[1] + end.shape.cy;
+				var points = pline.shape.points;
+				points[1] = [x1, y1];
+				pline.setShape('points', points);
+			})
+			this._zr.add(pline);
+		},
+		_initElement: function () {
+			var that = this;
+			this._zr.on("mouseup", function (e) {
+				that._helpLine.setShape('x1', 0);
+				that._helpLine.setShape('x2', 0);
+				that._helpLine.setShape('y1', 0);
+				that._helpLine.setShape('y2', 0);
+				that._lineCache.status = false;
+			});
+			
+			this._zr.on("mousemove", function(e) {
+				if(!that._lineCache.status) return;
+				that._helpLine.setShape('x2',e.offsetX);
+				that._helpLine.setShape('y2',e.offsetY);
+			});
+
+			var points = this._task.getPointObj();
+			/* 点的拖动 start */
+			util.each(points, function(point) {
+				point.on("mousedown", function(e) {
+					that._lineCache.start = point;
+					that._lineCache.status = true;
+					that._lineCache.context = that._task;
+					that._helpLine.setShape('x1', point.shape.cx);
+					that._helpLine.setShape('x2', point.shape.cx);
+					that._helpLine.setShape('y1', point.shape.cy);
+					that._helpLine.setShape('y2', point.shape.cy);
+				})
+				
+				point.on("mouseup", function(e) {
+					if(that._lineCache.status && that._lineCache.context != that._task) {				
+						that._lineCache.end = point;
+						that.drawLine(that._lineCache.start, that._lineCache.end);
+					}
+					that._helpLine.setShape('x1', 0);
+					that._helpLine.setShape('x2', 0);
+					that._helpLine.setShape('y1', 0);
+					that._helpLine.setShape('y2', 0);
+				})
+			})
+		}
+	}
+
+	return LineTo;
+	/*
+	return function (zr, task, lineCache, helpLine) { 
+		
 		function drawLine (start, end) {
 			var pline = new Polyline({
 				shape: {
@@ -187,17 +283,55 @@ define('custom/action/lineTo', ['custom/shape/TaskBlock', 'zrender/graphic/shape
 				pline.setShape('points', points);
 			})
 			zr.add(pline);
+
 		}
-		/* 点的拖动 end */
+		// 点的拖动 end
+		console.log(this);
 	}
+	*/
 })
 require(['zrender', 'zrender/graphic/shape/Line', 'custom/shape/TaskBlock', 'custom/action/lineTo'],
-function (zrender, Line, TaskBlock, lineTo){
+function (zrender, Line, TaskBlock, LineTo){
 	var zr = zrender.init(document.getElementById("main"));
 	
-	var task1 = new TaskBlock(zr, {x: 100, y: 100});
-	var task2 = new TaskBlock(zr, {x: 300, y: 100});
-	var task3 = new TaskBlock(zr, {x: 700, y: 120});
+	var start = new TaskBlock(zr, {
+									x: 400, 
+									y: 50, 
+									start: true, 
+									width: 50, 
+									height: 50,
+									style: {
+										fill: '#18a689',
+										text: 'Start',
+										textFill: '#fff'
+									}
+								});
+	var task = new TaskBlock(zr, {
+									x: 375, 
+									y: 200, 
+									width: 100, 
+									height: 60, 
+									title: '用户任务',
+									style: {
+										fill: '#fff',
+										text: '1fefwfwfwxgch\nkdadalj',
+										textOffset: [0, 5],
+										stroke: '#333'
+									}
+								});
+	var end = new TaskBlock(zr, {
+									x: 400, 
+									y: 350, 
+									end: true, 
+									width: 50, 
+									height: 50,
+									style: {
+										text: 'End',
+										textFill: '#fff',
+										fontWeight: '600',
+										fill: '#cb3103',
+									}
+								});
 	// 全局控制连线的容器
 	var lineCache = {
 		start: null,
@@ -216,9 +350,9 @@ function (zrender, Line, TaskBlock, lineTo){
 	});
 	zr.add(helpLine);
 	// 开启连线
-	lineTo(zr, task1, lineCache, helpLine);
-	lineTo(zr, task2, lineCache, helpLine);
-	lineTo(zr, task3, lineCache, helpLine);
+	new LineTo(zr, start, lineCache, helpLine).drawLine(start.getPointObj()[2], task.getPointObj()[0]);
+	new LineTo(zr, task, lineCache, helpLine).drawLine(task.getPointObj()[2], end.getPointObj()[0]);
+	new LineTo(zr, end, lineCache, helpLine);
 })
 </script>
 </body>
