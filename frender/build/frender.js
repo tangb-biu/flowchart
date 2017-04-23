@@ -5,7 +5,7 @@
  * @author errorrik (errorrik@gmail.com)
  */
 
-define('zrender/core/guid',[],function() {
+define('frender/core/guid',[],function() {
     var idStart = 0x0907;
 
     return function () {
@@ -20,7 +20,7 @@ define('zrender/core/guid',[],function() {
  * @author firede[firede@firede.us]
  * @desc thanks zepto.
  */
-define('zrender/core/env',[],function () {
+define('frender/core/env',[],function () {
     var env = {};
     if (typeof navigator === 'undefined') {
         // In node
@@ -145,7 +145,7 @@ define('zrender/core/env',[],function () {
 /**
  * @module zrender/core/util
  */
-define('zrender/core/util',['require'],function(require) {
+define('frender/core/util',['require'],function(require) {
 
     // 用于处理merge时无法遍历Date等对象的问题
     var BUILTIN_OBJECT = {
@@ -688,7 +688,7 @@ define('zrender/core/util',['require'],function(require) {
 
 // TODO Draggable for group
 // FIXME Draggable on element which has parent rotation or scale
-define('zrender/mixin/Draggable',['require'],function (require) {
+define('frender/mixin/Draggable',['require'],function (require) {
     function Draggable() {
 
         this.on('mousedown', this._dragStart, this);
@@ -775,7 +775,7 @@ define('zrender/mixin/Draggable',['require'],function (require) {
  * @author Kener (@Kener-林峰, kener.linfeng@gmail.com)
  *         pissang (https://www.github.com/pissang)
  */
-define('zrender/mixin/Eventful',['require'],function (require) {
+define('frender/mixin/Eventful',['require'],function (require) {
 
     var arrySlice = Array.prototype.slice;
 
@@ -1079,7 +1079,7 @@ define('zrender/mixin/Eventful',['require'],function (require) {
  *         errorrik (errorrik@gmail.com)
  *         pissang (shenyi.914@gmail.com)
  */
-define('zrender/Handler',['require','./core/util','./mixin/Draggable','./mixin/Eventful'],function (require) {
+define('frender/Handler',['require','./core/util','./mixin/Draggable','./mixin/Eventful'],function (require) {
 
     
 
@@ -1369,7 +1369,7 @@ define('zrender/Handler',['require','./core/util','./mixin/Draggable','./mixin/E
 
     return Handler;
 });
-define('zrender/core/matrix',[],function () {
+define('frender/core/matrix',[],function () {
     var ArrayCtor = typeof Float32Array === 'undefined'
         ? Array
         : Float32Array;
@@ -1528,7 +1528,7 @@ define('zrender/core/matrix',[],function () {
     return matrix;
 });
 
-define('zrender/core/vector',[],function () {
+define('frender/core/vector',[],function () {
     var ArrayCtor = typeof Float32Array === 'undefined'
         ? Array
         : Float32Array;
@@ -1814,7 +1814,7 @@ define('zrender/core/vector',[],function () {
  * @module zrender/mixin/Transformable
  * @author pissang (https://www.github.com/pissang)
  */
-define('zrender/mixin/Transformable',['require','../core/matrix','../core/vector'],function (require) {
+define('frender/mixin/Transformable',['require','../core/matrix','../core/vector'],function (require) {
 
     
 
@@ -2066,7 +2066,7 @@ define('zrender/mixin/Transformable',['require','../core/matrix','../core/vector
  * @see http://sole.github.io/tween.js/examples/03_graphs.html
  * @exports zrender/animation/easing
  */
-define('zrender/animation/easing',[],function () {
+define('frender/animation/easing',[],function () {
     var easing = {
         /**
         * @param {number} k
@@ -2421,7 +2421,7 @@ define('zrender/animation/easing',[],function () {
  *
  * TODO pause
  */
-define('zrender/animation/Clip',['require','./easing'],function(require) {
+define('frender/animation/Clip',['require','./easing'],function(require) {
 
     var easingFuncs = require('./easing');
 
@@ -2533,7 +2533,7 @@ define('zrender/animation/Clip',['require','./easing'],function(require) {
 
 // Simple LRU cache use doubly linked list
 // @module zrender/core/LRU
-define('zrender/core/LRU',['require'],function (require) {
+define('frender/core/LRU',['require'],function (require) {
 
     /**
      * Simple double linked list. Compared with array, it has O(1) remove operation.
@@ -2731,7 +2731,7 @@ define('zrender/core/LRU',['require'],function (require) {
 /**
  * @module zrender/tool/color
  */
-define('zrender/tool/color',['require','../core/LRU'],function(require) {
+define('frender/tool/color',['require','../core/LRU'],function(require) {
 
     var LRU = require('../core/LRU');
 
@@ -3264,7 +3264,7 @@ define('zrender/tool/color',['require','../core/LRU'],function(require) {
 /**
  * @module echarts/animation/Animator
  */
-define('zrender/animation/Animator',['require','./Clip','../tool/color','../core/util'],function (require) {
+define('frender/animation/Animator',['require','./Clip','../tool/color','../core/util'],function (require) {
 
     var Clip = require('./Clip');
     var color = require('../tool/color');
@@ -3910,7 +3910,7 @@ define('zrender/animation/Animator',['require','./Clip','../tool/color','../core
 
     return Animator;
 });
-define('zrender/config',[],function () {
+define('frender/config',[],function () {
     var dpr = 1;
     // If in browser environment
     if (typeof window !== 'undefined') {
@@ -3938,7 +3938,7 @@ define('zrender/config',[],function () {
 
 
 define(
-    'zrender/core/log',['require','../config'],function (require) {
+    'frender/core/log',['require','../config'],function (require) {
         var config = require('../config');
 
         /**
@@ -3975,7 +3975,7 @@ define(
 /**
  * @module zrender/mixin/Animatable
  */
-define('zrender/mixin/Animatable',['require','../animation/Animator','../core/util','../core/log'],function(require) {
+define('frender/mixin/Animatable',['require','../animation/Animator','../core/util','../core/log'],function(require) {
 
     
 
@@ -4245,7 +4245,7 @@ define('zrender/mixin/Animatable',['require','../animation/Animator','../core/ut
 /**
  * @module zrender/Element
  */
-define('zrender/Element',['require','./core/guid','./mixin/Eventful','./mixin/Transformable','./mixin/Animatable','./core/util'],function(require) {
+define('frender/Element',['require','./core/guid','./mixin/Eventful','./mixin/Transformable','./mixin/Animatable','./core/util'],function(require) {
     
 
     var guid = require('./core/guid');
@@ -4508,7 +4508,7 @@ define('zrender/Element',['require','./core/guid','./mixin/Eventful','./mixin/Tr
 /**
  * @module echarts/core/BoundingRect
  */
-define('zrender/core/BoundingRect',['require','./vector','./matrix'],function(require) {
+define('frender/core/BoundingRect',['require','./vector','./matrix'],function(require) {
     
 
     var vec2 = require('./vector');
@@ -4722,7 +4722,7 @@ define('zrender/core/BoundingRect',['require','./vector','./matrix'],function(re
  *     }));
  *     zr.add(g);
  */
-define('zrender/container/Group',['require','../core/util','../Element','../core/BoundingRect'],function (require) {
+define('frender/container/Group',['require','../core/util','../Element','../core/BoundingRect'],function (require) {
 
     var zrUtil = require('../core/util');
     var Element = require('../Element');
@@ -5022,7 +5022,7 @@ define('zrender/container/Group',['require','../core/util','../Element','../core
     return Group;
 });
 // https://github.com/mziccard/node-timsort
-define('zrender/core/timsort',[],function () {
+define('frender/core/timsort',[],function () {
     var DEFAULT_MIN_MERGE = 32;
 
     var DEFAULT_MIN_GALLOPING = 7;
@@ -5704,7 +5704,7 @@ define('zrender/core/timsort',[],function () {
  * @author errorrik (errorrik@gmail.com)
  * @author pissang (https://github.com/pissang/)
  */
-define('zrender/Storage',['require','./core/util','./core/env','./container/Group','./core/timsort'],function (require) {
+define('frender/Storage',['require','./core/util','./core/env','./container/Group','./core/timsort'],function (require) {
 
     
 
@@ -5982,7 +5982,7 @@ define('zrender/Storage',['require','./core/util','./core/env','./container/Grou
  * @module zrender/core/event
  * @author Kener (@Kener-林峰, kener.linfeng@gmail.com)
  */
-define('zrender/core/event',['require','../mixin/Eventful','./env'],function(require) {
+define('frender/core/event',['require','../mixin/Eventful','./env'],function(require) {
 
     
 
@@ -6124,7 +6124,7 @@ define('zrender/core/event',['require','../mixin/Eventful','./env'],function(req
     };
 });
 
-define('zrender/animation/requestAnimationFrame',['require'],function(require) {
+define('frender/animation/requestAnimationFrame',['require'],function(require) {
 
     return (typeof window !== 'undefined' &&
                                     (window.requestAnimationFrame
@@ -6145,7 +6145,7 @@ define('zrender/animation/requestAnimationFrame',['require'],function(require) {
 // TODO Additive animation
 // http://iosoteric.com/additive-animations-animatewithduration-in-ios-8/
 // https://developer.apple.com/videos/wwdc2014/#236
-define('zrender/animation/Animation',['require','../core/util','../core/event','./requestAnimationFrame','./Animator'],function(require) {
+define('frender/animation/Animation',['require','../core/util','../core/event','./requestAnimationFrame','./Animator'],function(require) {
 
     
 
@@ -6395,7 +6395,7 @@ define('zrender/animation/Animation',['require','../core/util','../core/event','
 /**
  * Only implements needed gestures for mobile.
  */
-define('zrender/core/GestureMgr',['require','./event'],function(require) {
+define('frender/core/GestureMgr',['require','./event'],function(require) {
 
     
 
@@ -6514,7 +6514,7 @@ define('zrender/core/GestureMgr',['require','./event'],function(require) {
     return GestureMgr;
 });
 
-define('zrender/dom/HandlerProxy',['require','../core/event','../core/util','../mixin/Eventful','../core/env','../core/GestureMgr'],function (require) {
+define('frender/dom/HandlerProxy',['require','../core/event','../core/util','../mixin/Eventful','../core/env','../core/GestureMgr'],function (require) {
 
     var eventTool = require('../core/event');
     var zrUtil = require('../core/util');
@@ -6896,7 +6896,7 @@ define('zrender/dom/HandlerProxy',['require','../core/event','../core/util','../
 /**
  * @module zrender/graphic/Style
  */
-define('zrender/graphic/Style',['require'],function (require) {
+define('frender/graphic/Style',['require'],function (require) {
 
     var STYLE_COMMON_PROPS = [
         ['shadowBlur', 0], ['shadowOffsetX', 0], ['shadowOffsetY', 0], ['shadowColor', '#000'],
@@ -7210,7 +7210,7 @@ define('zrender/graphic/Style',['require'],function (require) {
 
     return Style;
 });
-define('zrender/graphic/Pattern',['require'],function (require) {
+define('frender/graphic/Pattern',['require'],function (require) {
 
     var Pattern = function (image, repeat) {
         this.image = image;
@@ -7232,7 +7232,7 @@ define('zrender/graphic/Pattern',['require'],function (require) {
  * @module zrender/Layer
  * @author pissang(https://www.github.com/pissang)
  */
-define('zrender/Layer',['require','./core/util','./config','./graphic/Style','./graphic/Pattern'],function (require) {
+define('frender/Layer',['require','./core/util','./config','./graphic/Style','./graphic/Pattern'],function (require) {
 
     var util = require('./core/util');
     var config = require('./config');
@@ -7458,7 +7458,7 @@ define('zrender/Layer',['require','./core/util','./config','./graphic/Style','./
 
     return Layer;
 });
-define('zrender/contain/text',['require','../core/util','../core/BoundingRect'],function (require) {
+define('frender/contain/text',['require','../core/util','../core/BoundingRect'],function (require) {
 
     var textWidthCache = {};
     var textWidthCacheCounter = 0;
@@ -7739,7 +7739,7 @@ define('zrender/contain/text',['require','../core/util','../core/BoundingRect'],
  * @module zrender/mixin/RectText
  */
 
-define('zrender/graphic/mixin/RectText',['require','../../contain/text','../../core/BoundingRect'],function (require) {
+define('frender/graphic/mixin/RectText',['require','../../contain/text','../../core/BoundingRect'],function (require) {
 
     var textContain = require('../../contain/text');
     var BoundingRect = require('../../core/BoundingRect');
@@ -7891,7 +7891,7 @@ define('zrender/graphic/mixin/RectText',['require','../../contain/text','../../c
  * @module zrender/graphic/Displayable
  */
 
-define('zrender/graphic/Displayable',['require','../core/util','./Style','../Element','./mixin/RectText'],function (require) {
+define('frender/graphic/Displayable',['require','../core/util','./Style','../Element','./mixin/RectText'],function (require) {
 
     var zrUtil = require('../core/util');
 
@@ -8159,7 +8159,7 @@ define('zrender/graphic/Displayable',['require','../core/util','./Style','../Ele
  * @module zrender/graphic/Image
  */
 
-define('zrender/graphic/Image',['require','./Displayable','../core/BoundingRect','../core/util','../core/LRU'],function (require) {
+define('frender/graphic/Image',['require','./Displayable','../core/BoundingRect','../core/util','../core/LRU'],function (require) {
 
     var Displayable = require('./Displayable');
     var BoundingRect = require('../core/BoundingRect');
@@ -8320,7 +8320,7 @@ define('zrender/graphic/Image',['require','./Displayable','../core/BoundingRect'
  *         errorrik (errorrik@gmail.com)
  *         pissang (https://www.github.com/pissang)
  */
- define('zrender/Painter',['require','./config','./core/util','./core/log','./core/BoundingRect','./core/timsort','./Layer','./animation/requestAnimationFrame','./graphic/Image'],function (require) {
+ define('frender/Painter',['require','./config','./core/util','./core/log','./core/BoundingRect','./core/timsort','./Layer','./animation/requestAnimationFrame','./graphic/Image'],function (require) {
     
 
     var config = require('./config');
@@ -9406,7 +9406,7 @@ define('zrender/graphic/Image',['require','./Displayable','../core/BoundingRect'
  * https://github.com/ecomfe/zrender/blob/master/LICENSE.txt
  */
 // Global defines
-define('zrender/zrender',['require','./core/guid','./core/env','./core/util','./Handler','./Storage','./animation/Animation','./dom/HandlerProxy','./Painter'],function(require) {
+define('frender/frender',['require','./core/guid','./core/env','./core/util','./Handler','./Storage','./animation/Animation','./dom/HandlerProxy','./Painter'],function(require) {
     var guid = require('./core/guid');
     var env = require('./core/env');
     var zrUtil = require('./core/util');
@@ -9821,7 +9821,7 @@ define('zrender/zrender',['require','./core/guid','./core/env','./core/util','./
     return zrender;
 });
 
-define('zrender', ['zrender/zrender'], function (main) { return main; });
+define('frender', ['frender/frender'], function (main) { return main; });
 
 /**
  * Text element
@@ -9832,7 +9832,7 @@ define('zrender', ['zrender/zrender'], function (main) { return main; });
  * Text not support gradient
  */
 
-define('zrender/graphic/Text',['require','./Displayable','../core/util','../contain/text'],function (require) {
+define('frender/graphic/Text',['require','./Displayable','../core/util','../contain/text'],function (require) {
 
     var Displayable = require('./Displayable');
     var zrUtil = require('../core/util');
@@ -9964,7 +9964,7 @@ define('zrender/graphic/Text',['require','./Displayable','../core/util','../cont
  * @module zrender/core/curve
  * @author pissang(https://www.github.com/pissang)
  */
-define('zrender/core/curve',['require','./vector'],function(require) {
+define('frender/core/curve',['require','./vector'],function(require) {
 
     
 
@@ -10504,7 +10504,7 @@ define('zrender/core/curve',['require','./vector'],function(require) {
 /**
  * @author Yi Shen(https://github.com/pissang)
  */
-define('zrender/core/bbox',['require','./vector','./curve'],function (require) {
+define('frender/core/bbox',['require','./vector','./curve'],function (require) {
 
     var vec2 = require('./vector');
     var curve = require('./curve');
@@ -10741,7 +10741,7 @@ define('zrender/core/bbox',['require','./vector','./curve'],function (require) {
  */
 
  // TODO getTotalLength, getPointAtLength
-define('zrender/core/PathProxy',['require','./curve','./vector','./bbox','./BoundingRect','../config'],function (require) {
+define('frender/core/PathProxy',['require','./curve','./vector','./bbox','./BoundingRect','../config'],function (require) {
     
 
     var curve = require('./curve');
@@ -11502,7 +11502,7 @@ define('zrender/core/PathProxy',['require','./curve','./vector','./bbox','./Boun
 
     return PathProxy;
 });
-define('zrender/contain/line',[],function () {
+define('frender/contain/line',[],function () {
     return {
         /**
          * 线段包含判断
@@ -11545,7 +11545,7 @@ define('zrender/contain/line',[],function () {
         }
     };
 });
-define('zrender/contain/cubic',['require','../core/curve'],function (require) {
+define('frender/contain/cubic',['require','../core/curve'],function (require) {
 
     var curve = require('../core/curve');
 
@@ -11587,7 +11587,7 @@ define('zrender/contain/cubic',['require','../core/curve'],function (require) {
         }
     };
 });
-define('zrender/contain/quadratic',['require','../core/curve'],function (require) {
+define('frender/contain/quadratic',['require','../core/curve'],function (require) {
 
     var curve = require('../core/curve');
 
@@ -11627,7 +11627,7 @@ define('zrender/contain/quadratic',['require','../core/curve'],function (require
         }
     };
 });
-define('zrender/contain/util',['require'],function (require) {
+define('frender/contain/util',['require'],function (require) {
 
     var PI2 = Math.PI * 2;
     return {
@@ -11640,7 +11640,7 @@ define('zrender/contain/util',['require'],function (require) {
         }
     };
 });
-define('zrender/contain/arc',['require','./util'],function (require) {
+define('frender/contain/arc',['require','./util'],function (require) {
 
     var normalizeRadian = require('./util').normalizeRadian;
     var PI2 = Math.PI * 2;
@@ -11701,7 +11701,7 @@ define('zrender/contain/arc',['require','./util'],function (require) {
         }
     };
 });
-define('zrender/contain/windingLine',[],function () {
+define('frender/contain/windingLine',[],function () {
     return function windingLine(x0, y0, x1, y1, x, y) {
         if ((y > y0 && y > y1) || (y < y0 && y < y1)) {
             return 0;
@@ -11723,7 +11723,7 @@ define('zrender/contain/windingLine',[],function () {
         return x_ > x ? dir : 0;
     };
 });
-define('zrender/contain/path',['require','../core/PathProxy','./line','./cubic','./quadratic','./arc','./util','../core/curve','./windingLine'],function (require) {
+define('frender/contain/path',['require','../core/PathProxy','./line','./cubic','./quadratic','./arc','./util','../core/curve','./windingLine'],function (require) {
 
     
 
@@ -12130,7 +12130,7 @@ define('zrender/contain/path',['require','../core/PathProxy','./line','./cubic',
  * @module zrender/graphic/Path
  */
 
-define('zrender/graphic/Path',['require','./Displayable','../core/util','../core/PathProxy','../contain/path','./Pattern'],function (require) {
+define('frender/graphic/Path',['require','./Displayable','../core/util','../core/PathProxy','../contain/path','./Pattern'],function (require) {
 
     var Displayable = require('./Displayable');
     var zrUtil = require('../core/util');
@@ -12489,7 +12489,7 @@ define('zrender/graphic/Path',['require','./Displayable','../core/util','../core
  * 玫瑰线
  * @module zrender/graphic/shape/Rose
  */
-define('zrender/graphic/shape/Rose',['require','../Path'],function (require) {
+define('frender/graphic/shape/Rose',['require','../Path'],function (require) {
 
     var sin = Math.sin;
     var cos = Math.cos;
@@ -12548,7 +12548,7 @@ define('zrender/graphic/shape/Rose',['require','../Path'],function (require) {
  * 内外旋轮曲线
  * @module zrender/graphic/shape/Trochold
  */
-define('zrender/graphic/shape/Trochoid',['require','../Path'],function (require) {
+define('frender/graphic/shape/Trochoid',['require','../Path'],function (require) {
 
     var cos = Math.cos;
     var sin = Math.sin;
@@ -12627,7 +12627,7 @@ define('zrender/graphic/shape/Trochoid',['require','../Path'],function (require)
  * @module zrender/shape/Circle
  */
 
-define('zrender/graphic/shape/Circle',['require','../Path'],function (require) {
+define('frender/graphic/shape/Circle',['require','../Path'],function (require) {
     
 
     return require('../Path').extend({
@@ -12659,7 +12659,7 @@ define('zrender/graphic/shape/Circle',['require','../Path'],function (require) {
  * @module zrender/graphic/shape/Sector
  */
 
-define('zrender/graphic/shape/Sector',['require','../../core/env','../Path'],function (require) {
+define('frender/graphic/shape/Sector',['require','../../core/env','../Path'],function (require) {
 
     var env = require('../../core/env');
     var Path = require('../Path');
@@ -12772,7 +12772,7 @@ define('zrender/graphic/shape/Sector',['require','../../core/env','../Path'],fun
  * 圆环
  * @module zrender/graphic/shape/Ring
  */
-define('zrender/graphic/shape/Ring',['require','../Path'],function (require) {
+define('frender/graphic/shape/Ring',['require','../Path'],function (require) {
 
     return require('../Path').extend({
 
@@ -12802,7 +12802,7 @@ define('zrender/graphic/shape/Ring',['require','../Path'],function (require) {
  * @module zrender/graphic/shape/Ellipse
  */
 
-define('zrender/graphic/shape/Ellipse',['require','../Path'],function (require) {
+define('frender/graphic/shape/Ellipse',['require','../Path'],function (require) {
     
 
     return require('../Path').extend({
@@ -12833,7 +12833,7 @@ define('zrender/graphic/shape/Ellipse',['require','../Path'],function (require) 
     });
 });
 
-define('zrender/graphic/helper/roundRect',['require'],function (require) {
+define('frender/graphic/helper/roundRect',['require'],function (require) {
 
     return {
         buildPath: function (ctx, shape) {
@@ -12928,7 +12928,7 @@ define('zrender/graphic/helper/roundRect',['require'],function (require) {
  * @module zrender/graphic/shape/Rect
  */
 
-define('zrender/graphic/shape/Rect',['require','../helper/roundRect','../Path'],function (require) {
+define('frender/graphic/shape/Rect',['require','../helper/roundRect','../Path'],function (require) {
     var roundRectHelper = require('../helper/roundRect');
 
     return require('../Path').extend({
@@ -12970,7 +12970,7 @@ define('zrender/graphic/shape/Rect',['require','../helper/roundRect','../Path'],
  * 心形
  * @module zrender/graphic/shape/Heart
  */
-define('zrender/graphic/shape/Heart',['require','../Path'],function (require) {
+define('frender/graphic/shape/Heart',['require','../Path'],function (require) {
     
     
     return require('../Path').extend({
@@ -13009,7 +13009,7 @@ define('zrender/graphic/shape/Heart',['require','../Path'],function (require) {
  * @module zrender/graphic/shape/Droplet
  */
 
-define('zrender/graphic/shape/Droplet',['require','../Path'],function (require) {
+define('frender/graphic/shape/Droplet',['require','../Path'],function (require) {
     
 
     return require('../Path').extend({
@@ -13053,7 +13053,7 @@ define('zrender/graphic/shape/Droplet',['require','../Path'],function (require) 
  * 直线
  * @module zrender/graphic/shape/Line
  */
-define('zrender/graphic/shape/Line',['require','../Path'],function (require) {
+define('frender/graphic/shape/Line',['require','../Path'],function (require) {
     return require('../Path').extend({
 
         type: 'line',
@@ -13114,7 +13114,7 @@ define('zrender/graphic/shape/Line',['require','../Path'],function (require) {
  * @module zrender/graphic/shape/Star
  */
 
-define('zrender/graphic/shape/Star',['require','../Path'],function (require) {
+define('frender/graphic/shape/Star',['require','../Path'],function (require) {
     var PI = Math.PI;
 
     var cos = Math.cos;
@@ -13178,7 +13178,7 @@ define('zrender/graphic/shape/Star',['require','../Path'],function (require) {
  * @module zrender/shape/Isogon
  * @author sushuang (宿爽, sushuang0322@gmail.com)
  */
-define('zrender/graphic/shape/Isogon',['require','../Path'],function (require) {
+define('frender/graphic/shape/Isogon',['require','../Path'],function (require) {
     
 
     var PI = Math.PI;
@@ -13224,7 +13224,7 @@ define('zrender/graphic/shape/Isogon',['require','../Path'],function (require) {
  * 贝塞尔曲线
  * @module zrender/shape/BezierCurve
  */
-define('zrender/graphic/shape/BezierCurve',['require','../../core/curve','../../core/vector','../Path'],function (require) {
+define('frender/graphic/shape/BezierCurve',['require','../../core/curve','../../core/vector','../Path'],function (require) {
     
 
     var curveTool = require('../../core/curve');
@@ -13363,7 +13363,7 @@ define('zrender/graphic/shape/BezierCurve',['require','../../core/curve','../../
  *         Kener (@Kener-林峰, kener.linfeng@gmail.com)
  *         errorrik (errorrik@gmail.com)
  */
-define('zrender/graphic/helper/smoothSpline',['require','../../core/vector'],function (require) {
+define('frender/graphic/helper/smoothSpline',['require','../../core/vector'],function (require) {
     var vec2 = require('../../core/vector');
 
     /**
@@ -13434,7 +13434,7 @@ define('zrender/graphic/helper/smoothSpline',['require','../../core/vector'],fun
  *         Kener (@Kener-林峰, kener.linfeng@gmail.com)
  *         errorrik (errorrik@gmail.com)
  */
-define('zrender/graphic/helper/smoothBezier',['require','../../core/vector'],function (require) {
+define('frender/graphic/helper/smoothBezier',['require','../../core/vector'],function (require) {
 
     var vec2 = require('../../core/vector');
     var v2Min = vec2.min;
@@ -13529,7 +13529,7 @@ define('zrender/graphic/helper/smoothBezier',['require','../../core/vector'],fun
     };
 });
 
-define('zrender/graphic/helper/poly',['require','./smoothSpline','./smoothBezier'],function (require) {
+define('frender/graphic/helper/poly',['require','./smoothSpline','./smoothBezier'],function (require) {
 
     var smoothSpline = require('./smoothSpline');
     var smoothBezier = require('./smoothBezier');
@@ -13574,7 +13574,7 @@ define('zrender/graphic/helper/poly',['require','./smoothSpline','./smoothBezier
 /**
  * @module zrender/graphic/shape/Polyline
  */
-define('zrender/graphic/shape/Polyline',['require','../helper/poly','../Path'],function (require) {
+define('frender/graphic/shape/Polyline',['require','../helper/poly','../Path'],function (require) {
 
     var polyHelper = require('../helper/poly');
 
@@ -13605,7 +13605,7 @@ define('zrender/graphic/shape/Polyline',['require','../helper/poly','../Path'],f
  * 多边形
  * @module zrender/shape/Polygon
  */
-define('zrender/graphic/shape/Polygon',['require','../helper/poly','../Path'],function (require) {
+define('frender/graphic/shape/Polygon',['require','../helper/poly','../Path'],function (require) {
 
     var polyHelper = require('../helper/poly');
 
@@ -13631,7 +13631,7 @@ define('zrender/graphic/shape/Polygon',['require','../helper/poly','../Path'],fu
  * @module zrender/graphic/shape/Arrow
  */
 
-define('zrender/graphic/shape/Arrow',['require','../Path'],function (require) {
+define('frender/graphic/shape/Arrow',['require','../Path'],function (require) {
     
 
     return require('../Path').extend({
@@ -13677,7 +13677,270 @@ define('zrender/graphic/shape/Arrow',['require','../Path'],function (require) {
     });
 });
 
-define('zrender/graphic/Gradient',['require'],function (require) {
+/**
+ * 任务框
+ * @module zrender/custom/TaskBlock
+ */
+define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../graphic/shape/Rect','../graphic/shape/Circle','../container/Group','../graphic/Text','../core/util'],function(require) {
+	var Polygon = require('../graphic/shape/Polygon'),
+		Rect = require('../graphic/shape/Rect'),
+		Circle = require('../graphic/shape/Circle'),
+		Group = require('../container/Group'),
+		Text = require('../graphic/Text'),
+		util = require('../core/util');
+	function TaskBlock (zr, opt) {
+		this._zr = zr;
+		this._init(opt);
+	}
+
+	TaskBlock.prototype = {
+		_init: function(opt) {
+			var source = {
+				radius: 5, // 矩形周围的线柱半径
+				width: 100, // 矩形的宽
+			    height: 100, // 矩形的高
+			    r: 4, // 矩形的圆角半径
+			    x: 100, // 矩形的起始x
+			    y: 100, // 矩形的起始y
+			    start: false,
+			    end: false,
+			    style: {}
+			};
+			var that = this;
+			if(!opt){
+				//opt = source;
+			}else{
+				util.extend(source, opt);
+			}
+			var group = new Group();
+			var rect, child;
+			if(source.start) {
+				rect = new Polygon({
+					shape: {
+			            points: [
+			            	[source.x + source.width/2, source.y], 
+			            	[source.x + source.width, source.y + source.height/2],
+			            	[source.x + source.width/2, source.y + source.height],
+			            	[source.x, source.y + source.height/2]
+			            ],
+            			smooth: 'spline',
+			        },
+			        style: source.style,
+			        draggable: true,
+				});
+			} else if (source.end) {
+				rect = new Polygon({
+					shape: {
+			            points: [
+			            	[source.x + source.width/2, source.y], 
+			            	[source.x + source.width, source.y + source.height/2],
+			            	[source.x + source.width/2, source.y + source.height],
+			            	[source.x, source.y + source.height/2]
+			            ],
+            			smooth: 'spline',
+			        },
+			        style: source.style,
+			        draggable: true,
+				});
+			} else {
+				rect = new Rect({
+					shape: {
+			            r: source.r,
+			            x: source.x,
+			            y: source.y,
+			            width: source.width,
+			            height: source.height
+			        },
+			        style: source.style,
+			        draggable: true,
+				});
+				child = new Rect({
+					shape: {
+			            r: source.r,
+			            x: source.x,
+			            y: source.y,
+			            width: source.width,
+			            height: 20
+			        },
+			        style: {
+			        	fill: '#b9c7da',
+			        	stroke: '#333',
+			        	text: source.title,
+			        	textFill: '#000'
+			        },
+				})
+			}
+			var rectCaps = [];
+			var rectCapsPos = function (x, y) {
+				var arr = [];
+				arr.push({
+					x: source.x + source.width/2,
+					y: source.y - source.radius - 3,
+					dir: 'top'
+				});
+				arr.push({
+					x: source.x + source.width + source.radius + 3 ,
+					y: source.y + source.height/2,
+					dir: 'right'
+				});
+				arr.push({
+					x: source.x + source.width/2,
+					y: source.y + source.height + source.radius + 3,
+					dir: 'bottom'
+				});
+				arr.push({
+					x: source.x - source.radius - 3,
+					y: source.y + source.height/2,
+					dir: 'left'
+				});
+				return arr;
+			};
+			for(var i=0,arr=rectCapsPos(source.x, source.y);i<arr.length;i++){
+				var circle = new Circle({
+					shape:{
+						cx: arr[i].x,
+			            cy: arr[i].y,
+			            r: source.radius
+			        },
+			        style: {
+			        	fill: !!(source.start || source.end ) ? '#7373f5' : '#735151'
+			        }
+				});
+				circle.dir = arr[i].dir;
+				circle.zlevel = 100;
+				circle.follow = rect;
+				circle.shape_cp = util.clone(circle.shape);
+				group.add(circle);
+				rectCaps.push(circle);
+			}
+			rect.on('drag', function(){
+				if(child) child.transform = this.transform;
+				for(var i=0;i<rectCaps.length;i++){
+					rectCaps[i].setShape('cx', this.position[0] + rectCaps[i].shape_cp.cx);
+					rectCaps[i].setShape('cy', this.position[1] + rectCaps[i].shape_cp.cy);
+
+				}
+			})
+			group.add(rect);
+			group.add(child);
+			this._zr.add(group);
+			this._rectCaps = rectCaps;
+			this._rect = rect;
+		},
+		getPointObj: function() {
+			return this._rectCaps;
+		},
+		getRect: function() {
+			return this._rect;
+		}
+	}
+	return TaskBlock;
+});
+ /**
+ * 连接线
+ * @module zrender/custom/LineTo
+ */
+ define('frender/custom/LineTo',['require','../container/Group','../graphic/shape/Polyline','../graphic/shape/Arrow','../core/util'],function(require) {
+
+ 	var Group = require('../container/Group');
+ 	var Polyline = require('../graphic/shape/Polyline');
+ 	var Arrow = require('../graphic/shape/Arrow');
+ 	var util = require('../core/util');
+
+ 	function LineTo(zr, task, lineCache, helpLine) {
+		this._init(zr, task, lineCache, helpLine);
+	}
+	LineTo.prototype = {
+		constructor: LineTo,
+
+		_init: function(zr, task, lineCache, helpLine) {
+			this._zr = zr;
+			this._task = task;
+			this._lineCache = lineCache;
+			this._helpLine = helpLine;
+			this._initElement();
+		},
+		drawLine: function (start, end) {
+			var group = new Group();
+			var pline = new Polyline({
+				shape: {
+					points: [[start.shape.cx + start.position[0], start.shape.cy + start.position[1]], [end.shape.cx + end.position[0], end.shape.cy + end.position[1]]],
+				}
+			})
+			var len = pline.shape.points.length;
+			var arrow = new Arrow({
+				shape: {
+					points: pline.shape.points.slice(-2),
+					angle: 15,
+            		edgeLen: 40
+				}
+			});
+			group.add(pline);
+			group.add(arrow);
+			start.follow.on('drag', function(){
+				var x1 = start.position[0] + start.shape.cx;
+				var y1 = start.position[1] + start.shape.cy;
+				var points = pline.shape.points;
+				points[0] = [x1, y1];
+				pline.setShape('points', points);
+				arrow.setShape('points', points.slice(-2));
+			})
+			end.follow.on('drag', function(){
+				var x1 = end.position[0] + end.shape.cx;
+				var y1 = end.position[1] + end.shape.cy;
+				var points = pline.shape.points;
+				points[1] = [x1, y1];
+				pline.setShape('points', points);
+				arrow.setShape('points', points.slice(-2));
+			})
+			this._zr.add(group);
+		},
+		_initElement: function () {
+			var that = this;
+			this._zr.on("mouseup", function (e) {
+				that._helpLine.setShape('x1', 0);
+				that._helpLine.setShape('x2', 0);
+				that._helpLine.setShape('y1', 0);
+				that._helpLine.setShape('y2', 0);
+				that._lineCache.status = false;
+			});
+			
+			this._zr.on("mousemove", function(e) {
+				if(!that._lineCache.status) return;
+				that._helpLine.setShape('x2',e.offsetX);
+				that._helpLine.setShape('y2',e.offsetY);
+			});
+
+			var points = this._task.getPointObj();
+			/* 点的拖动 start */
+			util.each(points, function(point) {
+				point.on("mousedown", function(e) {
+					that._lineCache.start = point;
+					that._lineCache.status = true;
+					that._lineCache.context = that._task;
+					that._helpLine.setShape('x1', point.shape.cx);
+					that._helpLine.setShape('x2', point.shape.cx);
+					that._helpLine.setShape('y1', point.shape.cy);
+					that._helpLine.setShape('y2', point.shape.cy);
+				})
+				
+				point.on("mouseup", function(e) {
+					if(that._lineCache.status && that._lineCache.context != that._task) {				
+						that._lineCache.end = point;
+						that.drawLine(that._lineCache.start, that._lineCache.end);
+					}
+					that._helpLine.setShape('x1', 0);
+					that._helpLine.setShape('x2', 0);
+					that._helpLine.setShape('y1', 0);
+					that._helpLine.setShape('y2', 0);
+				})
+			})
+		}
+	}
+
+	return LineTo;
+ });
+define('frender/graphic/Gradient',['require'],function (require) {
 
     /**
      * @param {Array.<Object>} colorStops
@@ -13703,7 +13966,7 @@ define('zrender/graphic/Gradient',['require'],function (require) {
 
     return Gradient;
 });
-define('zrender/vml/core',['require','exports','module','../core/env'],function (require, exports, module) {
+define('frender/vml/core',['require','exports','module','../core/env'],function (require, exports, module) {
 
 if (!require('../core/env').canvasSupported) {
     var urn = 'urn:schemas-microsoft-com:vml';
@@ -13753,7 +14016,7 @@ if (!require('../core/env').canvasSupported) {
 });
 // http://www.w3.org/TR/NOTE-VML
 // TODO Use proxy like svg instead of overwrite brush methods
-define('zrender/vml/graphic',['require','../core/env','../core/vector','../core/BoundingRect','../core/PathProxy','../tool/color','../contain/text','../graphic/mixin/RectText','../graphic/Displayable','../graphic/Image','../graphic/Text','../graphic/Path','../graphic/Gradient','./core'],function (require) {
+define('frender/vml/graphic',['require','../core/env','../core/vector','../core/BoundingRect','../core/PathProxy','../tool/color','../contain/text','../graphic/mixin/RectText','../graphic/Displayable','../graphic/Image','../graphic/Text','../graphic/Path','../graphic/Gradient','./core'],function (require) {
 
 if (!require('../core/env').canvasSupported) {
     var vec2 = require('../core/vector');
@@ -14812,7 +15075,7 @@ if (!require('../core/env').canvasSupported) {
  * @module zrender/vml/Painter
  */
 
-define('zrender/vml/Painter',['require','../core/log','./core'],function (require) {
+define('frender/vml/Painter',['require','../core/log','./core'],function (require) {
 
     var zrLog = require('../core/log');
     var vmlCore = require('./core');
@@ -15000,7 +15263,7 @@ define('zrender/vml/Painter',['require','../core/log','./core'],function (requir
 
     return VMLPainter;
 });
-define('zrender/vml/vml',['require','./graphic','../zrender','./Painter'],function (require) {
+define('frender/vml/vml',['require','./graphic','../frender','./Painter'],function (require) {
     require('./graphic');
-    require('../zrender').registerPainter('vml', require('./Painter'));
+    require('../frender').registerPainter('vml', require('./Painter'));
 });
