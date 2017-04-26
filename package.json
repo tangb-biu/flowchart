@@ -24,6 +24,6 @@
     "gulp-concat": "^2.6.1",
     "gulp-connect": "^5.0.0",
     "gulp-rename": "^1.2.2",
-    "gulp-uglify": "^2.1.2",
+    "gulp-uglify": "^2.1.2"
   }
 }
