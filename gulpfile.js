@@ -21,7 +21,7 @@ gulp.task('jsmin', () => {
 
 gulp.task('connect', function () {
 	connect.server({
-		root: './',
+		//root: './',
 		livereload: true
 	})
 });
@@ -37,4 +37,4 @@ gulp.task('watch', function(){
 	gulp.watch(['src/frender/**/*.js', 'src/custom/**/*.js'], ['jsmin']);
 })
 
-gulp.task('default', ['jsmin', 'connect', 'watch']);
+gulp.task('default', ['connect', 'jsmin', 'watch']);
