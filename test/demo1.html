@@ -23,7 +23,7 @@
 require(['frender', 'frender/graphic/shape/Line', 'frender/custom/TaskBlock', 'frender/custom/LineTo'],
 function (frender, Line, TaskBlock, LineTo){
 	var zr = frender.init(document.getElementById("main"));
-	
+
 	var start = new TaskBlock(zr, {
 									x: 400, 
 									y: 50, 
@@ -83,6 +83,38 @@ function (frender, Line, TaskBlock, LineTo){
 	new LineTo(zr, start, lineCache, helpLine).drawLine(start.getPointObj()[2], task.getPointObj()[0]);
 	new LineTo(zr, task, lineCache, helpLine).drawLine(task.getPointObj()[2], end.getPointObj()[0]);
 	new LineTo(zr, end, lineCache, helpLine);
+
+	// 离屏canvas 绘制网格
+	/*
+	var offsetCanvas = document.createElement('canvas');
+	var height = zr.getHeight();
+	var width = zr.getWidth();
+	offsetCanvas.height = height;
+	offsetCanvas.width = width;
+	var ctx = offsetCanvas.getContext('2d');
+	for(var i=15;i<height;i=i+15){
+		ctx.save();
+		ctx.beginPath();
+		ctx.moveTo(0, i);
+		ctx.lineTo(width, i);
+		ctx.strokeStyle = '#999';
+		ctx.stroke();
+		ctx.closePath();
+		ctx.restore();
+	}
+	for(var j=15;j<width;j=j+15){
+		ctx.save();
+		ctx.beginPath();
+		ctx.moveTo(j, 0);
+		ctx.lineTo(j, height);
+		ctx.strokeStyle = '#999';
+		ctx.stroke();
+		ctx.closePath();
+		ctx.restore();
+	}
+	zr.dom.style['background'] = 'url('+offsetCanvas.toDataURL()+') center no-repeat';
+	*/
+	
 })
 </script>
 </body>
