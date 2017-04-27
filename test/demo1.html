@@ -124,7 +124,6 @@ function (frender, Line, TaskBlock, LineTo, Group, Rect){
 	// 工具栏
 	var group = new Group();
 	//group.position = [0,0];
-
 	var rect = new Rect({
 		shape:{
 			r: 0,
@@ -138,6 +137,7 @@ function (frender, Line, TaskBlock, LineTo, Group, Rect){
 	    	fill: '#fff'
 	    }
 	})
+	rect.zlevel = 101;
 	var t = new Rect({
 		shape: {
 			r: 4,
@@ -147,9 +147,44 @@ function (frender, Line, TaskBlock, LineTo, Group, Rect){
 			height: 60
 		}
 	});
+	t.zlevel = 101;
 	group.add(rect);
+	rect.on('mousemove', function(){
+		this.cursor = 'default';
+	})
 	group.add(t);
 	zr.add(group);
+	var flag = false;
+	var taskSub;
+	t.on('mousedown', function (){
+		flag = true;
+	})
+	zr.on('mouseup', function () {
+		flag = false;
+	})
+	zr.on('mousemove', function (e) {
+		if(e.offsetX < 100 || !flag) return;
+		if(taskSub) {
+			taskSub.getRect().position[0] = e.offsetX - taskSub.getRect().shape.x;
+			taskSub.getRect().position[1] = e.offsetY - taskSub.getRect().shape.y;
+		}else{
+			taskSub = new TaskBlock(zr, {
+				x: e.offsetX-50, 
+				y: e.offsetY-30, 
+				width: 100, 
+				height: 60, 
+				title: '用户任务',
+				style: {
+					fill: '#fff',
+					text: '1fech\nkdadalj',
+					textOffset: [0, 5],
+					stroke: '#333'
+				}
+			});
+			console.log(taskSub);
+		}
+
+	})
 })
 </script>
 </body>
