@@ -20,8 +20,8 @@
 <script type="text/javascript" src="../src/lib/require.min.js"></script>
 <script type="text/javascript" src="../src/lib/frender.js"></script>
 <script type="text/javascript">
-require(['frender', 'frender/graphic/shape/Line', 'frender/custom/TaskBlock', 'frender/custom/LineTo'],
-function (frender, Line, TaskBlock, LineTo){
+require(['frender', 'frender/graphic/shape/Line', 'frender/custom/TaskBlock', 'frender/custom/LineTo', 'frender/container/Group', 'frender/graphic/shape/Rect'],
+function (frender, Line, TaskBlock, LineTo, Group, Rect){
 	var zr = frender.init(document.getElementById("main"));
 
 	var start = new TaskBlock(zr, {
@@ -84,8 +84,15 @@ function (frender, Line, TaskBlock, LineTo){
 	new LineTo(zr, task, lineCache, helpLine).drawLine(task.getPointObj()[2], end.getPointObj()[0]);
 	new LineTo(zr, end, lineCache, helpLine);
 
+	var line = new Line({
+		shape: {
+			x1: 100,
+			y1: 0,
+
+		}
+	})
 	// 离屏canvas 绘制网格
-	/*
+
 	var offsetCanvas = document.createElement('canvas');
 	var height = zr.getHeight();
 	var width = zr.getWidth();
@@ -112,9 +119,37 @@ function (frender, Line, TaskBlock, LineTo){
 		ctx.closePath();
 		ctx.restore();
 	}
-	zr.dom.style['background'] = 'url('+offsetCanvas.toDataURL()+') center no-repeat';
-	*/
+	//zr.dom.style['background'] = 'url('+offsetCanvas.toDataURL()+') center no-repeat';
 	
+	// 工具栏
+	var group = new Group();
+	//group.position = [0,0];
+
+	var rect = new Rect({
+		shape:{
+			r: 0,
+	        x: 0,
+	        y: 0,
+	        width: 100,
+	        height: height
+	    },
+	    style:{
+	    	stroke: '#000',
+	    	fill: '#fff'
+	    }
+	})
+	var t = new Rect({
+		shape: {
+			r: 4,
+			x: 10,
+			y: 10,
+			width: 80,
+			height: 60
+		}
+	});
+	group.add(rect);
+	group.add(t);
+	zr.add(group);
 })
 </script>
 </body>
