@@ -507,6 +507,11 @@ define('frender/core/util',['require'],function(require) {
         return obj[primitiveKey];
     }
 
+    function uuid() {
+        return 'xxxx_xxxx_xxxxxxxx_xxxy'.replace(/[xy]/g, function(){
+            return (~~(Math.random()*16)).toString(16);
+        })
+    }
     var util = {
         inherits: inherits,
         mixin: mixin,
@@ -537,6 +542,7 @@ define('frender/core/util',['require'],function(require) {
         retrieve: retrieve,
         assert: assert,
         setAsPrimitive: setAsPrimitive,
+        uuid: uuid,
         noop: function () {}
     };
     return util;

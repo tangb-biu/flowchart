@@ -16,6 +16,10 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 
 	TaskBlock.prototype = {
 		_init: function(opt) {
+			this._id = util.uuid() + '_block';
+			var code = 'var '+this._id + ' = new TaskBlock(zr, '+ JSON.stringify(opt)+')';
+			this._zr.process.push(code);
+			this._zr.cache.push(this);
 			var source = {
 				radius: 5, // 矩形周围的线柱半径
 				width: 100, // 矩形的宽
@@ -89,7 +93,8 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 			        	text: source.title,
 			        	textFill: '#000'
 			        },
-				})
+			        zlevel: 100
+				});
 			}
 			var rectCaps = [];
 			var rectCapsPos = function (x, y) {
@@ -125,10 +130,10 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 			        },
 			        style: {
 			        	fill: !!(source.start || source.end ) ? '#7373f5' : '#735151'
-			        }
+			        },
+			        zlevel: 100
 				});
 				circle.dir = arr[i].dir;
-				circle.zlevel = 100;
 				circle.follow = rect;
 				circle.shape_cp = util.clone(circle.shape);
 				group.add(circle);
@@ -139,7 +144,6 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 				for(var i=0;i<rectCaps.length;i++){
 					rectCaps[i].setShape('cx', this.position[0] + rectCaps[i].shape_cp.cx);
 					rectCaps[i].setShape('cy', this.position[1] + rectCaps[i].shape_cp.cy);
-
 				}
 			})
 			group.add(rect);
@@ -153,6 +157,12 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 		},
 		getRect: function() {
 			return this._rect;
+		},
+		setTransform: function( transform ) {
+			this._rect.transform = transform;
+		},
+		getTransform: function() {
+			return this._rect.transform;
 		}
 	}
 	return TaskBlock;

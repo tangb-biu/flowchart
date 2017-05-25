@@ -8,8 +8,9 @@
 		padding: 0;
 	}
 	#main{
-		height: 100%;
-		height: 100%;
+		height: 50%;
+		width: 50%;
+		border: 1px solid #fff;
 	}
 </style>
 </head>
@@ -20,8 +21,9 @@
 <script type="text/javascript" src="../src/lib/require.min.js"></script>
 <script type="text/javascript" src="../src/lib/frender.js"></script>
 <script type="text/javascript">
-require(['frender', 'frender/graphic/shape/Line', 'frender/custom/TaskBlock', 'frender/custom/LineTo', 'frender/container/Group', 'frender/graphic/shape/Rect'],
-function (frender, Line, TaskBlock, LineTo, Group, Rect){
+require(['frender', 'frender/graphic/shape/Line', 'frender/custom/TaskBlock', 'frender/custom/LineTo', 'frender/container/Group', 'frender/graphic/shape/Rect', 'frender/core/util'],
+function (frender, Line, TaskBlock, LineTo, Group, Rect, util
+	){
 	var zr = frender.init(document.getElementById("main"));
 
 	var start = new TaskBlock(zr, {
@@ -36,19 +38,19 @@ function (frender, Line, TaskBlock, LineTo, Group, Rect){
 										textFill: '#fff'
 									}
 								});
-	var task = new TaskBlock(zr, {
-									x: 375, 
-									y: 200, 
-									width: 100, 
-									height: 60, 
-									title: '用户任务',
-									style: {
-										fill: '#fff',
-										text: '1fefwfwfwxgch\nkdadalj',
-										textOffset: [0, 5],
-										stroke: '#333'
-									}
-								});
+	// var task = new TaskBlock(zr, {
+	// 								x: 375, 
+	// 								y: 200, 
+	// 								width: 100, 
+	// 								height: 60, 
+	// 								title: '用户任务',
+	// 								style: {
+	// 									fill: '#fff',
+	// 									text: '1fefwfwfwxgch\nkdadalj',
+	// 									textOffset: [0, 5],
+	// 									stroke: '#333'
+	// 								}
+	// 							});
 	var end = new TaskBlock(zr, {
 									x: 400, 
 									y: 350, 
@@ -80,22 +82,20 @@ function (frender, Line, TaskBlock, LineTo, Group, Rect){
 	});
 	zr.add(helpLine);
 	// 开启连线
-	new LineTo(zr, start, lineCache, helpLine).drawLine(start.getPointObj()[2], task.getPointObj()[0]);
-	new LineTo(zr, task, lineCache, helpLine).drawLine(task.getPointObj()[2], end.getPointObj()[0]);
+	new LineTo(zr, start, lineCache, helpLine);
 	new LineTo(zr, end, lineCache, helpLine);
-
+	
 	var line = new Line({
 		shape: {
 			x1: 100,
-			y1: 0,
-
+			y1: 0
 		}
 	})
-	// 离屏canvas 绘制网格
-
-	var offsetCanvas = document.createElement('canvas');
 	var height = zr.getHeight();
 	var width = zr.getWidth();
+	// 离屏canvas 绘制网格
+	/*
+	var offsetCanvas = document.createElement('canvas');
 	offsetCanvas.height = height;
 	offsetCanvas.width = width;
 	var ctx = offsetCanvas.getContext('2d');
@@ -119,8 +119,8 @@ function (frender, Line, TaskBlock, LineTo, Group, Rect){
 		ctx.closePath();
 		ctx.restore();
 	}
-	//zr.dom.style['background'] = 'url('+offsetCanvas.toDataURL()+') center no-repeat';
-	
+	zr.dom.style['background'] = 'url('+offsetCanvas.toDataURL()+') center no-repeat';
+	*/
 	// 工具栏
 	var group = new Group();
 	//group.position = [0,0];
@@ -145,9 +145,9 @@ function (frender, Line, TaskBlock, LineTo, Group, Rect){
 			y: 10,
 			width: 80,
 			height: 60
-		}
+		},
+		zlevel: 101
 	});
-	t.zlevel = 101;
 	group.add(rect);
 	rect.on('mousemove', function(){
 		this.cursor = 'default';
@@ -187,6 +187,45 @@ function (frender, Line, TaskBlock, LineTo, Group, Rect){
 			new LineTo(zr, taskSub, lineCache, helpLine);
 		}
 	})
+
+
+	var btn_ok = new Rect({
+		shape: {
+			r: 4,
+			x: 10,
+			y: 100,
+			width: 80,
+			height: 20
+		},
+		style: {
+        	fill: '#b9c7da',
+        	stroke: '#333',
+        	text: '保存',
+        	textFill: '#000'
+        },
+        zlevel: 101
+	});
+
+	btn_ok.on('click', function() {
+		for(var i=0; i<this.__zr.process.length; i++){
+			var v = this.__zr.process[i];
+			for(var j=0; j<this.__zr.cache.length; j++) {
+				var m = this.__zr.cache[j];
+				if(v.indexOf('_block') == -1) continue;
+
+				var uid = v.split(' ')[1];
+				if(uid == m._id) {
+					var trans = JSON.stringify(m.getTransform());
+					var str = uid + '.setTransform('+trans+')';
+					this.__zr.process.push(str);
+				}
+			}
+		}
+
+		console.log(this.__zr.process.join(';'));
+
+	})
+	group.add(btn_ok);
 })
 </script>
 </body>

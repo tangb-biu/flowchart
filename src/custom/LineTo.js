@@ -16,6 +16,9 @@
 		constructor: LineTo,
 
 		_init: function(zr, task, lineCache, helpLine) {
+			this._id = util.uuid();
+			var code = 'var ' + this._id + ' = new LineTo(zr, '+task._id+', lineCache, helpLine)';
+			zr.process.push(code);
 			this._zr = zr;
 			this._task = task;
 			this._lineCache = lineCache;
@@ -23,6 +26,8 @@
 			this._initElement();
 		},
 		drawLine: function (start, end) {
+			var code = this._id + '.drawLine(zr.getId('+start.id+'), zr.getId('+end.id+')';
+            this._zr.process.push(code);
             var that = this;
 			var group = new Group();
 			var pline = new Polyline({

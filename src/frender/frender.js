@@ -27,7 +27,6 @@ define('frender/frender',['require','./core/guid','./core/env','./core/util','./
     var instances = {};    // frender实例map索引
 
     var frender = {};
-
     /**
      * @type {string}
      */
@@ -113,6 +112,11 @@ define('frender/frender',['require','./core/guid','./core/env','./core/util','./
          * @type {string}
          */
         this.id = id;
+
+        /* save process code */
+        this.process = [];
+        /* cache what you want */
+        this.cache = [];
 
         var self = this;
         var storage = new Storage();
