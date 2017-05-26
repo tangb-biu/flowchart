@@ -508,7 +508,7 @@ define('frender/core/util',['require'],function(require) {
     }
 
     function uuid() {
-        return 'xxxx_xxxx_xxxxxxxx_xxxy'.replace(/[xy]/g, function(){
+        return 'fxxx_xxxx_xxxxxxxx_xxxy'.replace(/[xy]/g, function(){
             return (~~(Math.random()*16)).toString(16);
         })
     }

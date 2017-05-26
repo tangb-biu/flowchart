@@ -26,7 +26,7 @@
 			this._initElement();
 		},
 		drawLine: function (start, end) {
-			var code = this._id + '.drawLine(zr.getId('+start.id+'), zr.getId('+end.id+')';
+			var code = this._id + '.drawLine(zr.getId('+start.id+'), zr.getId('+end.id+'))';
             this._zr.process.push(code);
             var that = this;
 			var group = new Group();

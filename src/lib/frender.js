@@ -5204,385 +5204,6 @@ define('frender/container/Group',['require','../core/util','../Element','../core
 
     return Group;
 });
-define('frender/dom/HandlerProxy',['require','../core/event','../core/util','../mixin/Eventful','../core/env','../core/GestureMgr'],function (require) {
-
-    var eventTool = require('../core/event');
-    var zrUtil = require('../core/util');
-    var Eventful = require('../mixin/Eventful');
-    var env = require('../core/env');
-    var GestureMgr = require('../core/GestureMgr');
-
-    var addEventListener = eventTool.addEventListener;
-    var removeEventListener = eventTool.removeEventListener;
-    var normalizeEvent = eventTool.normalizeEvent;
-
-    var TOUCH_CLICK_DELAY = 300;
-
-    var mouseHandlerNames = [
-        'click', 'dblclick', 'mousewheel', 'mouseout',
-        'mouseup', 'mousedown', 'mousemove', 'contextmenu'
-    ];
-
-    var touchHandlerNames = [
-        'touchstart', 'touchend', 'touchmove'
-    ];
-
-    var pointerEventNames = {
-        pointerdown: 1, pointerup: 1, pointermove: 1, pointerout: 1
-    };
-
-    var pointerHandlerNames = zrUtil.map(mouseHandlerNames, function (name) {
-        var nm = name.replace('mouse', 'pointer');
-        return pointerEventNames[nm] ? nm : name;
-    });
-
-    function eventNameFix(name) {
-        return (name === 'mousewheel' && env.browser.firefox) ? 'DOMMouseScroll' : name;
-    }
-
-    function processGesture(proxy, event, stage) {
-        var gestureMgr = proxy._gestureMgr;
-
-        stage === 'start' && gestureMgr.clear();
-
-        var gestureInfo = gestureMgr.recognize(
-            event,
-            proxy.handler.findHover(event.zrX, event.zrY, null),
-            proxy.dom
-        );
-
-        stage === 'end' && gestureMgr.clear();
-
-        // Do not do any preventDefault here. Upper application do that if necessary.
-        if (gestureInfo) {
-            var type = gestureInfo.type;
-            event.gestureEvent = type;
-
-            proxy.handler.dispatchToElement(gestureInfo.target, type, gestureInfo.event);
-        }
-    }
-
-    // function onMSGestureChange(proxy, event) {
-    //     if (event.translationX || event.translationY) {
-    //         // mousemove is carried by MSGesture to reduce the sensitivity.
-    //         proxy.handler.dispatchToElement(event.target, 'mousemove', event);
-    //     }
-    //     if (event.scale !== 1) {
-    //         event.pinchX = event.offsetX;
-    //         event.pinchY = event.offsetY;
-    //         event.pinchScale = event.scale;
-    //         proxy.handler.dispatchToElement(event.target, 'pinch', event);
-    //     }
-    // }
-
-    /**
-     * Prevent mouse event from being dispatched after Touch Events action
-     * @see <https://github.com/deltakosh/handjs/blob/master/src/hand.base.js>
-     * 1. Mobile browsers dispatch mouse events 300ms after touchend.
-     * 2. Chrome for Android dispatch mousedown for long-touch about 650ms
-     * Result: Blocking Mouse Events for 700ms.
-     */
-    function setTouchTimer(instance) {
-        instance._touching = true;
-        clearTimeout(instance._touchTimer);
-        instance._touchTimer = setTimeout(function () {
-            instance._touching = false;
-        }, 700);
-    }
-
-
-    var domHandlers = {
-        /**
-         * Mouse move handler
-         * @inner
-         * @param {Event} event
-         */
-        mousemove: function (event) {
-            event = normalizeEvent(this.dom, event);
-
-            this.trigger('mousemove', event);
-        },
-
-        /**
-         * Mouse out handler
-         * @inner
-         * @param {Event} event
-         */
-        mouseout: function (event) {
-            event = normalizeEvent(this.dom, event);
-
-            var element = event.toElement || event.relatedTarget;
-            if (element != this.dom) {
-                while (element && element.nodeType != 9) {
-                    // 忽略包含在root中的dom引起的mouseOut
-                    if (element === this.dom) {
-                        return;
-                    }
-
-                    element = element.parentNode;
-                }
-            }
-
-            this.trigger('mouseout', event);
-        },
-
-        /**
-         * Touch开始响应函数
-         * @inner
-         * @param {Event} event
-         */
-        touchstart: function (event) {
-            // Default mouse behaviour should not be disabled here.
-            // For example, page may needs to be slided.
-            event = normalizeEvent(this.dom, event);
-
-            // Mark touch, which is useful in distinguish touch and
-            // mouse event in upper applicatoin.
-            event.zrByTouch = true;
-
-            this._lastTouchMoment = new Date();
-
-            processGesture(this, event, 'start');
-
-            // In touch device, trigger `mousemove`(`mouseover`) should
-            // be triggered, and must before `mousedown` triggered.
-            domHandlers.mousemove.call(this, event);
-
-            domHandlers.mousedown.call(this, event);
-
-            setTouchTimer(this);
-        },
-
-        /**
-         * Touch移动响应函数
-         * @inner
-         * @param {Event} event
-         */
-        touchmove: function (event) {
-
-            event = normalizeEvent(this.dom, event);
-
-            // Mark touch, which is useful in distinguish touch and
-            // mouse event in upper applicatoin.
-            event.zrByTouch = true;
-
-            processGesture(this, event, 'change');
-
-            // Mouse move should always be triggered no matter whether
-            // there is gestrue event, because mouse move and pinch may
-            // be used at the same time.
-            domHandlers.mousemove.call(this, event);
-
-            setTouchTimer(this);
-        },
-
-        /**
-         * Touch结束响应函数
-         * @inner
-         * @param {Event} event
-         */
-        touchend: function (event) {
-
-            event = normalizeEvent(this.dom, event);
-
-            // Mark touch, which is useful in distinguish touch and
-            // mouse event in upper applicatoin.
-            event.zrByTouch = true;
-
-            processGesture(this, event, 'end');
-
-            domHandlers.mouseup.call(this, event);
-
-            // Do not trigger `mouseout` here, in spite of `mousemove`(`mouseover`) is
-            // triggered in `touchstart`. This seems to be illogical, but by this mechanism,
-            // we can conveniently implement "hover style" in both PC and touch device just
-            // by listening to `mouseover` to add "hover style" and listening to `mouseout`
-            // to remove "hover style" on an element, without any additional code for
-            // compatibility. (`mouseout` will not be triggered in `touchend`, so "hover
-            // style" will remain for user view)
-
-            // click event should always be triggered no matter whether
-            // there is gestrue event. System click can not be prevented.
-            if (+new Date() - this._lastTouchMoment < TOUCH_CLICK_DELAY) {
-                domHandlers.click.call(this, event);
-            }
-
-            setTouchTimer(this);
-        },
-
-        pointerdown: function (event) {
-            domHandlers.mousedown.call(this, event);
-
-            // if (useMSGuesture(this, event)) {
-            //     this._msGesture.addPointer(event.pointerId);
-            // }
-        },
-
-        pointermove: function (event) {
-            // FIXME
-            // pointermove is so sensitive that it always triggered when
-            // tap(click) on touch screen, which affect some judgement in
-            // upper application. So, we dont support mousemove on MS touch
-            // device yet.
-            if (!isPointerFromTouch(event)) {
-                domHandlers.mousemove.call(this, event);
-            }
-        },
-
-        pointerup: function (event) {
-            domHandlers.mouseup.call(this, event);
-        },
-
-        pointerout: function (event) {
-            // pointerout will be triggered when tap on touch screen
-            // (IE11+/Edge on MS Surface) after click event triggered,
-            // which is inconsistent with the mousout behavior we defined
-            // in touchend. So we unify them.
-            // (check domHandlers.touchend for detailed explanation)
-            if (!isPointerFromTouch(event)) {
-                domHandlers.mouseout.call(this, event);
-            }
-        }
-    };
-
-    function isPointerFromTouch(event) {
-        var pointerType = event.pointerType;
-        return pointerType === 'pen' || pointerType === 'touch';
-    }
-
-    // function useMSGuesture(handlerProxy, event) {
-    //     return isPointerFromTouch(event) && !!handlerProxy._msGesture;
-    // }
-
-    // Common handlers
-    zrUtil.each(['click', 'mousedown', 'mouseup', 'mousewheel', 'dblclick', 'contextmenu'], function (name) {
-        domHandlers[name] = function (event) {
-            event = normalizeEvent(this.dom, event);
-            this.trigger(name, event);
-        };
-    });
-
-    /**
-     * 为控制类实例初始化dom 事件处理函数
-     *
-     * @inner
-     * @param {module:frender/Handler} instance 控制类实例
-     */
-    function initDomHandler(instance) {
-        zrUtil.each(touchHandlerNames, function (name) {
-            instance._handlers[name] = zrUtil.bind(domHandlers[name], instance);
-        });
-
-        zrUtil.each(pointerHandlerNames, function (name) {
-            instance._handlers[name] = zrUtil.bind(domHandlers[name], instance);
-        });
-
-        zrUtil.each(mouseHandlerNames, function (name) {
-            instance._handlers[name] = makeMouseHandler(domHandlers[name], instance);
-        });
-
-        function makeMouseHandler(fn, instance) {
-            return function () {
-                if (instance._touching) {
-                    return;
-                }
-                return fn.apply(instance, arguments);
-            };
-        }
-    }
-
-
-    function HandlerDomProxy(dom) {
-        Eventful.call(this);
-
-        this.dom = dom;
-
-        /**
-         * @private
-         * @type {boolean}
-         */
-        this._touching = false;
-
-        /**
-         * @private
-         * @type {number}
-         */
-        this._touchTimer;
-
-        /**
-         * @private
-         * @type {module:frender/core/GestureMgr}
-         */
-        this._gestureMgr = new GestureMgr();
-
-        this._handlers = {};
-
-        initDomHandler(this);
-
-        if (env.pointerEventsSupported) { // Only IE11+/Edge
-            // 1. On devices that both enable touch and mouse (e.g., MS Surface and lenovo X240),
-            // IE11+/Edge do not trigger touch event, but trigger pointer event and mouse event
-            // at the same time.
-            // 2. On MS Surface, it probablely only trigger mousedown but no mouseup when tap on
-            // screen, which do not occurs in pointer event.
-            // So we use pointer event to both detect touch gesture and mouse behavior.
-            mountHandlers(pointerHandlerNames, this);
-
-            // FIXME
-            // Note: MS Gesture require CSS touch-action set. But touch-action is not reliable,
-            // which does not prevent defuault behavior occasionally (which may cause view port
-            // zoomed in but use can not zoom it back). And event.preventDefault() does not work.
-            // So we have to not to use MSGesture and not to support touchmove and pinch on MS
-            // touch screen. And we only support click behavior on MS touch screen now.
-
-            // MS Gesture Event is only supported on IE11+/Edge and on Windows 8+.
-            // We dont support touch on IE on win7.
-            // See <https://msdn.microsoft.com/en-us/library/dn433243(v=vs.85).aspx>
-            // if (typeof MSGesture === 'function') {
-            //     (this._msGesture = new MSGesture()).target = dom; // jshint ignore:line
-            //     dom.addEventListener('MSGestureChange', onMSGestureChange);
-            // }
-        }
-        else {
-            if (env.touchEventsSupported) {
-                mountHandlers(touchHandlerNames, this);
-                // Handler of 'mouseout' event is needed in touch mode, which will be mounted below.
-                // addEventListener(root, 'mouseout', this._mouseoutHandler);
-            }
-
-            // 1. Considering some devices that both enable touch and mouse event (like on MS Surface
-            // and lenovo X240, @see #2350), we make mouse event be always listened, otherwise
-            // mouse event can not be handle in those devices.
-            // 2. On MS Surface, Chrome will trigger both touch event and mouse event. How to prevent
-            // mouseevent after touch event triggered, see `setTouchTimer`.
-            mountHandlers(mouseHandlerNames, this);
-        }
-
-        function mountHandlers(handlerNames, instance) {
-            zrUtil.each(handlerNames, function (name) {
-                addEventListener(dom, eventNameFix(name), instance._handlers[name]);
-            }, instance);
-        }
-    }
-
-    var handlerDomProxyProto = HandlerDomProxy.prototype;
-    handlerDomProxyProto.dispose = function () {
-        var handlerNames = mouseHandlerNames.concat(touchHandlerNames);
-
-        for (var i = 0; i < handlerNames.length; i++) {
-            var name = handlerNames[i];
-            removeEventListener(this.dom, eventNameFix(name), this._handlers[name]);
-        }
-    };
-
-    handlerDomProxyProto.setCursor = function (cursorStyle) {
-        this.dom.style.cursor = cursorStyle || 'default';
-    };
-
-    zrUtil.mixin(HandlerDomProxy, Eventful);
-
-    return HandlerDomProxy;
-});
 /**
  * @author Yi Shen(https://github.com/pissang)
  */
@@ -9309,7 +8930,7 @@ define('frender/core/util',['require'],function(require) {
     }
 
     function uuid() {
-        return 'xxxx_xxxx_xxxxxxxx_xxxy'.replace(/[xy]/g, function(){
+        return 'fxxx_xxxx_xxxxxxxx_xxxy'.replace(/[xy]/g, function(){
             return (~~(Math.random()*16)).toString(16);
         })
     }
@@ -9627,6 +9248,385 @@ define('frender/core/vector',[],function () {
     vector.distSquare = vector.distanceSquare;
 
     return vector;
+});
+define('frender/dom/HandlerProxy',['require','../core/event','../core/util','../mixin/Eventful','../core/env','../core/GestureMgr'],function (require) {
+
+    var eventTool = require('../core/event');
+    var zrUtil = require('../core/util');
+    var Eventful = require('../mixin/Eventful');
+    var env = require('../core/env');
+    var GestureMgr = require('../core/GestureMgr');
+
+    var addEventListener = eventTool.addEventListener;
+    var removeEventListener = eventTool.removeEventListener;
+    var normalizeEvent = eventTool.normalizeEvent;
+
+    var TOUCH_CLICK_DELAY = 300;
+
+    var mouseHandlerNames = [
+        'click', 'dblclick', 'mousewheel', 'mouseout',
+        'mouseup', 'mousedown', 'mousemove', 'contextmenu'
+    ];
+
+    var touchHandlerNames = [
+        'touchstart', 'touchend', 'touchmove'
+    ];
+
+    var pointerEventNames = {
+        pointerdown: 1, pointerup: 1, pointermove: 1, pointerout: 1
+    };
+
+    var pointerHandlerNames = zrUtil.map(mouseHandlerNames, function (name) {
+        var nm = name.replace('mouse', 'pointer');
+        return pointerEventNames[nm] ? nm : name;
+    });
+
+    function eventNameFix(name) {
+        return (name === 'mousewheel' && env.browser.firefox) ? 'DOMMouseScroll' : name;
+    }
+
+    function processGesture(proxy, event, stage) {
+        var gestureMgr = proxy._gestureMgr;
+
+        stage === 'start' && gestureMgr.clear();
+
+        var gestureInfo = gestureMgr.recognize(
+            event,
+            proxy.handler.findHover(event.zrX, event.zrY, null),
+            proxy.dom
+        );
+
+        stage === 'end' && gestureMgr.clear();
+
+        // Do not do any preventDefault here. Upper application do that if necessary.
+        if (gestureInfo) {
+            var type = gestureInfo.type;
+            event.gestureEvent = type;
+
+            proxy.handler.dispatchToElement(gestureInfo.target, type, gestureInfo.event);
+        }
+    }
+
+    // function onMSGestureChange(proxy, event) {
+    //     if (event.translationX || event.translationY) {
+    //         // mousemove is carried by MSGesture to reduce the sensitivity.
+    //         proxy.handler.dispatchToElement(event.target, 'mousemove', event);
+    //     }
+    //     if (event.scale !== 1) {
+    //         event.pinchX = event.offsetX;
+    //         event.pinchY = event.offsetY;
+    //         event.pinchScale = event.scale;
+    //         proxy.handler.dispatchToElement(event.target, 'pinch', event);
+    //     }
+    // }
+
+    /**
+     * Prevent mouse event from being dispatched after Touch Events action
+     * @see <https://github.com/deltakosh/handjs/blob/master/src/hand.base.js>
+     * 1. Mobile browsers dispatch mouse events 300ms after touchend.
+     * 2. Chrome for Android dispatch mousedown for long-touch about 650ms
+     * Result: Blocking Mouse Events for 700ms.
+     */
+    function setTouchTimer(instance) {
+        instance._touching = true;
+        clearTimeout(instance._touchTimer);
+        instance._touchTimer = setTimeout(function () {
+            instance._touching = false;
+        }, 700);
+    }
+
+
+    var domHandlers = {
+        /**
+         * Mouse move handler
+         * @inner
+         * @param {Event} event
+         */
+        mousemove: function (event) {
+            event = normalizeEvent(this.dom, event);
+
+            this.trigger('mousemove', event);
+        },
+
+        /**
+         * Mouse out handler
+         * @inner
+         * @param {Event} event
+         */
+        mouseout: function (event) {
+            event = normalizeEvent(this.dom, event);
+
+            var element = event.toElement || event.relatedTarget;
+            if (element != this.dom) {
+                while (element && element.nodeType != 9) {
+                    // 忽略包含在root中的dom引起的mouseOut
+                    if (element === this.dom) {
+                        return;
+                    }
+
+                    element = element.parentNode;
+                }
+            }
+
+            this.trigger('mouseout', event);
+        },
+
+        /**
+         * Touch开始响应函数
+         * @inner
+         * @param {Event} event
+         */
+        touchstart: function (event) {
+            // Default mouse behaviour should not be disabled here.
+            // For example, page may needs to be slided.
+            event = normalizeEvent(this.dom, event);
+
+            // Mark touch, which is useful in distinguish touch and
+            // mouse event in upper applicatoin.
+            event.zrByTouch = true;
+
+            this._lastTouchMoment = new Date();
+
+            processGesture(this, event, 'start');
+
+            // In touch device, trigger `mousemove`(`mouseover`) should
+            // be triggered, and must before `mousedown` triggered.
+            domHandlers.mousemove.call(this, event);
+
+            domHandlers.mousedown.call(this, event);
+
+            setTouchTimer(this);
+        },
+
+        /**
+         * Touch移动响应函数
+         * @inner
+         * @param {Event} event
+         */
+        touchmove: function (event) {
+
+            event = normalizeEvent(this.dom, event);
+
+            // Mark touch, which is useful in distinguish touch and
+            // mouse event in upper applicatoin.
+            event.zrByTouch = true;
+
+            processGesture(this, event, 'change');
+
+            // Mouse move should always be triggered no matter whether
+            // there is gestrue event, because mouse move and pinch may
+            // be used at the same time.
+            domHandlers.mousemove.call(this, event);
+
+            setTouchTimer(this);
+        },
+
+        /**
+         * Touch结束响应函数
+         * @inner
+         * @param {Event} event
+         */
+        touchend: function (event) {
+
+            event = normalizeEvent(this.dom, event);
+
+            // Mark touch, which is useful in distinguish touch and
+            // mouse event in upper applicatoin.
+            event.zrByTouch = true;
+
+            processGesture(this, event, 'end');
+
+            domHandlers.mouseup.call(this, event);
+
+            // Do not trigger `mouseout` here, in spite of `mousemove`(`mouseover`) is
+            // triggered in `touchstart`. This seems to be illogical, but by this mechanism,
+            // we can conveniently implement "hover style" in both PC and touch device just
+            // by listening to `mouseover` to add "hover style" and listening to `mouseout`
+            // to remove "hover style" on an element, without any additional code for
+            // compatibility. (`mouseout` will not be triggered in `touchend`, so "hover
+            // style" will remain for user view)
+
+            // click event should always be triggered no matter whether
+            // there is gestrue event. System click can not be prevented.
+            if (+new Date() - this._lastTouchMoment < TOUCH_CLICK_DELAY) {
+                domHandlers.click.call(this, event);
+            }
+
+            setTouchTimer(this);
+        },
+
+        pointerdown: function (event) {
+            domHandlers.mousedown.call(this, event);
+
+            // if (useMSGuesture(this, event)) {
+            //     this._msGesture.addPointer(event.pointerId);
+            // }
+        },
+
+        pointermove: function (event) {
+            // FIXME
+            // pointermove is so sensitive that it always triggered when
+            // tap(click) on touch screen, which affect some judgement in
+            // upper application. So, we dont support mousemove on MS touch
+            // device yet.
+            if (!isPointerFromTouch(event)) {
+                domHandlers.mousemove.call(this, event);
+            }
+        },
+
+        pointerup: function (event) {
+            domHandlers.mouseup.call(this, event);
+        },
+
+        pointerout: function (event) {
+            // pointerout will be triggered when tap on touch screen
+            // (IE11+/Edge on MS Surface) after click event triggered,
+            // which is inconsistent with the mousout behavior we defined
+            // in touchend. So we unify them.
+            // (check domHandlers.touchend for detailed explanation)
+            if (!isPointerFromTouch(event)) {
+                domHandlers.mouseout.call(this, event);
+            }
+        }
+    };
+
+    function isPointerFromTouch(event) {
+        var pointerType = event.pointerType;
+        return pointerType === 'pen' || pointerType === 'touch';
+    }
+
+    // function useMSGuesture(handlerProxy, event) {
+    //     return isPointerFromTouch(event) && !!handlerProxy._msGesture;
+    // }
+
+    // Common handlers
+    zrUtil.each(['click', 'mousedown', 'mouseup', 'mousewheel', 'dblclick', 'contextmenu'], function (name) {
+        domHandlers[name] = function (event) {
+            event = normalizeEvent(this.dom, event);
+            this.trigger(name, event);
+        };
+    });
+
+    /**
+     * 为控制类实例初始化dom 事件处理函数
+     *
+     * @inner
+     * @param {module:frender/Handler} instance 控制类实例
+     */
+    function initDomHandler(instance) {
+        zrUtil.each(touchHandlerNames, function (name) {
+            instance._handlers[name] = zrUtil.bind(domHandlers[name], instance);
+        });
+
+        zrUtil.each(pointerHandlerNames, function (name) {
+            instance._handlers[name] = zrUtil.bind(domHandlers[name], instance);
+        });
+
+        zrUtil.each(mouseHandlerNames, function (name) {
+            instance._handlers[name] = makeMouseHandler(domHandlers[name], instance);
+        });
+
+        function makeMouseHandler(fn, instance) {
+            return function () {
+                if (instance._touching) {
+                    return;
+                }
+                return fn.apply(instance, arguments);
+            };
+        }
+    }
+
+
+    function HandlerDomProxy(dom) {
+        Eventful.call(this);
+
+        this.dom = dom;
+
+        /**
+         * @private
+         * @type {boolean}
+         */
+        this._touching = false;
+
+        /**
+         * @private
+         * @type {number}
+         */
+        this._touchTimer;
+
+        /**
+         * @private
+         * @type {module:frender/core/GestureMgr}
+         */
+        this._gestureMgr = new GestureMgr();
+
+        this._handlers = {};
+
+        initDomHandler(this);
+
+        if (env.pointerEventsSupported) { // Only IE11+/Edge
+            // 1. On devices that both enable touch and mouse (e.g., MS Surface and lenovo X240),
+            // IE11+/Edge do not trigger touch event, but trigger pointer event and mouse event
+            // at the same time.
+            // 2. On MS Surface, it probablely only trigger mousedown but no mouseup when tap on
+            // screen, which do not occurs in pointer event.
+            // So we use pointer event to both detect touch gesture and mouse behavior.
+            mountHandlers(pointerHandlerNames, this);
+
+            // FIXME
+            // Note: MS Gesture require CSS touch-action set. But touch-action is not reliable,
+            // which does not prevent defuault behavior occasionally (which may cause view port
+            // zoomed in but use can not zoom it back). And event.preventDefault() does not work.
+            // So we have to not to use MSGesture and not to support touchmove and pinch on MS
+            // touch screen. And we only support click behavior on MS touch screen now.
+
+            // MS Gesture Event is only supported on IE11+/Edge and on Windows 8+.
+            // We dont support touch on IE on win7.
+            // See <https://msdn.microsoft.com/en-us/library/dn433243(v=vs.85).aspx>
+            // if (typeof MSGesture === 'function') {
+            //     (this._msGesture = new MSGesture()).target = dom; // jshint ignore:line
+            //     dom.addEventListener('MSGestureChange', onMSGestureChange);
+            // }
+        }
+        else {
+            if (env.touchEventsSupported) {
+                mountHandlers(touchHandlerNames, this);
+                // Handler of 'mouseout' event is needed in touch mode, which will be mounted below.
+                // addEventListener(root, 'mouseout', this._mouseoutHandler);
+            }
+
+            // 1. Considering some devices that both enable touch and mouse event (like on MS Surface
+            // and lenovo X240, @see #2350), we make mouse event be always listened, otherwise
+            // mouse event can not be handle in those devices.
+            // 2. On MS Surface, Chrome will trigger both touch event and mouse event. How to prevent
+            // mouseevent after touch event triggered, see `setTouchTimer`.
+            mountHandlers(mouseHandlerNames, this);
+        }
+
+        function mountHandlers(handlerNames, instance) {
+            zrUtil.each(handlerNames, function (name) {
+                addEventListener(dom, eventNameFix(name), instance._handlers[name]);
+            }, instance);
+        }
+    }
+
+    var handlerDomProxyProto = HandlerDomProxy.prototype;
+    handlerDomProxyProto.dispose = function () {
+        var handlerNames = mouseHandlerNames.concat(touchHandlerNames);
+
+        for (var i = 0; i < handlerNames.length; i++) {
+            var name = handlerNames[i];
+            removeEventListener(this.dom, eventNameFix(name), this._handlers[name]);
+        }
+    };
+
+    handlerDomProxyProto.setCursor = function (cursorStyle) {
+        this.dom.style.cursor = cursorStyle || 'default';
+    };
+
+    zrUtil.mixin(HandlerDomProxy, Eventful);
+
+    return HandlerDomProxy;
 });
 /**
  * 可绘制的图形基类
@@ -10914,537 +10914,6 @@ define('frender/graphic/Text',['require','./Displayable','../core/util','../cont
     return Text;
 });
 /**
- * @module frender/tool/color
- */
-define('frender/tool/color',['require','../core/LRU'],function(require) {
-    
-    var LRU = require('../core/LRU');
-
-    var kCSSColorTable = {
-        'transparent': [0,0,0,0], 'aliceblue': [240,248,255,1],
-        'antiquewhite': [250,235,215,1], 'aqua': [0,255,255,1],
-        'aquamarine': [127,255,212,1], 'azure': [240,255,255,1],
-        'beige': [245,245,220,1], 'bisque': [255,228,196,1],
-        'black': [0,0,0,1], 'blanchedalmond': [255,235,205,1],
-        'blue': [0,0,255,1], 'blueviolet': [138,43,226,1],
-        'brown': [165,42,42,1], 'burlywood': [222,184,135,1],
-        'cadetblue': [95,158,160,1], 'chartreuse': [127,255,0,1],
-        'chocolate': [210,105,30,1], 'coral': [255,127,80,1],
-        'cornflowerblue': [100,149,237,1], 'cornsilk': [255,248,220,1],
-        'crimson': [220,20,60,1], 'cyan': [0,255,255,1],
-        'darkblue': [0,0,139,1], 'darkcyan': [0,139,139,1],
-        'darkgoldenrod': [184,134,11,1], 'darkgray': [169,169,169,1],
-        'darkgreen': [0,100,0,1], 'darkgrey': [169,169,169,1],
-        'darkkhaki': [189,183,107,1], 'darkmagenta': [139,0,139,1],
-        'darkolivegreen': [85,107,47,1], 'darkorange': [255,140,0,1],
-        'darkorchid': [153,50,204,1], 'darkred': [139,0,0,1],
-        'darksalmon': [233,150,122,1], 'darkseagreen': [143,188,143,1],
-        'darkslateblue': [72,61,139,1], 'darkslategray': [47,79,79,1],
-        'darkslategrey': [47,79,79,1], 'darkturquoise': [0,206,209,1],
-        'darkviolet': [148,0,211,1], 'deeppink': [255,20,147,1],
-        'deepskyblue': [0,191,255,1], 'dimgray': [105,105,105,1],
-        'dimgrey': [105,105,105,1], 'dodgerblue': [30,144,255,1],
-        'firebrick': [178,34,34,1], 'floralwhite': [255,250,240,1],
-        'forestgreen': [34,139,34,1], 'fuchsia': [255,0,255,1],
-        'gainsboro': [220,220,220,1], 'ghostwhite': [248,248,255,1],
-        'gold': [255,215,0,1], 'goldenrod': [218,165,32,1],
-        'gray': [128,128,128,1], 'green': [0,128,0,1],
-        'greenyellow': [173,255,47,1], 'grey': [128,128,128,1],
-        'honeydew': [240,255,240,1], 'hotpink': [255,105,180,1],
-        'indianred': [205,92,92,1], 'indigo': [75,0,130,1],
-        'ivory': [255,255,240,1], 'khaki': [240,230,140,1],
-        'lavender': [230,230,250,1], 'lavenderblush': [255,240,245,1],
-        'lawngreen': [124,252,0,1], 'lemonchiffon': [255,250,205,1],
-        'lightblue': [173,216,230,1], 'lightcoral': [240,128,128,1],
-        'lightcyan': [224,255,255,1], 'lightgoldenrodyellow': [250,250,210,1],
-        'lightgray': [211,211,211,1], 'lightgreen': [144,238,144,1],
-        'lightgrey': [211,211,211,1], 'lightpink': [255,182,193,1],
-        'lightsalmon': [255,160,122,1], 'lightseagreen': [32,178,170,1],
-        'lightskyblue': [135,206,250,1], 'lightslategray': [119,136,153,1],
-        'lightslategrey': [119,136,153,1], 'lightsteelblue': [176,196,222,1],
-        'lightyellow': [255,255,224,1], 'lime': [0,255,0,1],
-        'limegreen': [50,205,50,1], 'linen': [250,240,230,1],
-        'magenta': [255,0,255,1], 'maroon': [128,0,0,1],
-        'mediumaquamarine': [102,205,170,1], 'mediumblue': [0,0,205,1],
-        'mediumorchid': [186,85,211,1], 'mediumpurple': [147,112,219,1],
-        'mediumseagreen': [60,179,113,1], 'mediumslateblue': [123,104,238,1],
-        'mediumspringgreen': [0,250,154,1], 'mediumturquoise': [72,209,204,1],
-        'mediumvioletred': [199,21,133,1], 'midnightblue': [25,25,112,1],
-        'mintcream': [245,255,250,1], 'mistyrose': [255,228,225,1],
-        'moccasin': [255,228,181,1], 'navajowhite': [255,222,173,1],
-        'navy': [0,0,128,1], 'oldlace': [253,245,230,1],
-        'olive': [128,128,0,1], 'olivedrab': [107,142,35,1],
-        'orange': [255,165,0,1], 'orangered': [255,69,0,1],
-        'orchid': [218,112,214,1], 'palegoldenrod': [238,232,170,1],
-        'palegreen': [152,251,152,1], 'paleturquoise': [175,238,238,1],
-        'palevioletred': [219,112,147,1], 'papayawhip': [255,239,213,1],
-        'peachpuff': [255,218,185,1], 'peru': [205,133,63,1],
-        'pink': [255,192,203,1], 'plum': [221,160,221,1],
-        'powderblue': [176,224,230,1], 'purple': [128,0,128,1],
-        'red': [255,0,0,1], 'rosybrown': [188,143,143,1],
-        'royalblue': [65,105,225,1], 'saddlebrown': [139,69,19,1],
-        'salmon': [250,128,114,1], 'sandybrown': [244,164,96,1],
-        'seagreen': [46,139,87,1], 'seashell': [255,245,238,1],
-        'sienna': [160,82,45,1], 'silver': [192,192,192,1],
-        'skyblue': [135,206,235,1], 'slateblue': [106,90,205,1],
-        'slategray': [112,128,144,1], 'slategrey': [112,128,144,1],
-        'snow': [255,250,250,1], 'springgreen': [0,255,127,1],
-        'steelblue': [70,130,180,1], 'tan': [210,180,140,1],
-        'teal': [0,128,128,1], 'thistle': [216,191,216,1],
-        'tomato': [255,99,71,1], 'turquoise': [64,224,208,1],
-        'violet': [238,130,238,1], 'wheat': [245,222,179,1],
-        'white': [255,255,255,1], 'whitesmoke': [245,245,245,1],
-        'yellow': [255,255,0,1], 'yellowgreen': [154,205,50,1]
-    };
-
-    function clampCssByte(i) {  // Clamp to integer 0 .. 255.
-        i = Math.round(i);  // Seems to be what Chrome does (vs truncation).
-        return i < 0 ? 0 : i > 255 ? 255 : i;
-    }
-
-    function clampCssAngle(i) {  // Clamp to integer 0 .. 360.
-        i = Math.round(i);  // Seems to be what Chrome does (vs truncation).
-        return i < 0 ? 0 : i > 360 ? 360 : i;
-    }
-
-    function clampCssFloat(f) {  // Clamp to float 0.0 .. 1.0.
-        return f < 0 ? 0 : f > 1 ? 1 : f;
-    }
-
-    function parseCssInt(str) {  // int or percentage.
-        if (str.length && str.charAt(str.length - 1) === '%') {
-            return clampCssByte(parseFloat(str) / 100 * 255);
-        }
-        return clampCssByte(parseInt(str, 10));
-    }
-
-    function parseCssFloat(str) {  // float or percentage.
-        if (str.length && str.charAt(str.length - 1) === '%') {
-            return clampCssFloat(parseFloat(str) / 100);
-        }
-        return clampCssFloat(parseFloat(str));
-    }
-
-    function cssHueToRgb(m1, m2, h) {
-        if (h < 0) {
-            h += 1;
-        }
-        else if (h > 1) {
-            h -= 1;
-        }
-
-        if (h * 6 < 1) {
-            return m1 + (m2 - m1) * h * 6;
-        }
-        if (h * 2 < 1) {
-            return m2;
-        }
-        if (h * 3 < 2) {
-            return m1 + (m2 - m1) * (2/3 - h) * 6;
-        }
-        return m1;
-    }
-
-    function lerp(a, b, p) {
-        return a + (b - a) * p;
-    }
-
-    function setRgba(out, r, g, b, a) {
-        out[0] = r; out[1] = g; out[2] = b; out[3] = a;
-        return out;
-    }
-    function copyRgba(out, a) {
-        out[0] = a[0]; out[1] = a[1]; out[2] = a[2]; out[3] = a[3];
-        return out;
-    }
-    var colorCache = new LRU(20);
-    var lastRemovedArr = null;
-    function putToCache(colorStr, rgbaArr) {
-        // Reuse removed array
-        if (lastRemovedArr) {
-            copyRgba(lastRemovedArr, rgbaArr);
-        }
-        lastRemovedArr = colorCache.put(colorStr, lastRemovedArr || (rgbaArr.slice()));
-    }
-    /**
-     * @param {string} colorStr
-     * @param {Array.<number>} out
-     * @return {Array.<number>}
-     * @memberOf module:frender/util/color
-     */
-    function parse(colorStr, rgbaArr) {
-        if (!colorStr) {
-            return;
-        }
-        rgbaArr = rgbaArr || [];
-
-        var cached = colorCache.get(colorStr);
-        if (cached) {
-            return copyRgba(rgbaArr, cached);
-        }
-
-        // colorStr may be not string
-        colorStr = colorStr + '';
-        // Remove all whitespace, not compliant, but should just be more accepting.
-        var str = colorStr.replace(/ /g, '').toLowerCase();
-
-        // Color keywords (and transparent) lookup.
-        if (str in kCSSColorTable) {
-            copyRgba(rgbaArr, kCSSColorTable[str]);
-            putToCache(colorStr, rgbaArr);
-            return rgbaArr;
-        }
-
-        // #abc and #abc123 syntax.
-        if (str.charAt(0) === '#') {
-            if (str.length === 4) {
-                var iv = parseInt(str.substr(1), 16);  // TODO(deanm): Stricter parsing.
-                if (!(iv >= 0 && iv <= 0xfff)) {
-                    setRgba(rgbaArr, 0, 0, 0, 1);
-                    return;  // Covers NaN.
-                }
-                setRgba(rgbaArr,
-                    ((iv & 0xf00) >> 4) | ((iv & 0xf00) >> 8),
-                    (iv & 0xf0) | ((iv & 0xf0) >> 4),
-                    (iv & 0xf) | ((iv & 0xf) << 4),
-                    1
-                );
-                putToCache(colorStr, rgbaArr);
-                return rgbaArr;
-            }
-            else if (str.length === 7) {
-                var iv = parseInt(str.substr(1), 16);  // TODO(deanm): Stricter parsing.
-                if (!(iv >= 0 && iv <= 0xffffff)) {
-                    setRgba(rgbaArr, 0, 0, 0, 1);
-                    return;  // Covers NaN.
-                }
-                setRgba(rgbaArr,
-                    (iv & 0xff0000) >> 16,
-                    (iv & 0xff00) >> 8,
-                    iv & 0xff,
-                    1
-                );
-                putToCache(colorStr, rgbaArr);
-                return rgbaArr;
-            }
-
-            return;
-        }
-        var op = str.indexOf('('), ep = str.indexOf(')');
-        if (op !== -1 && ep + 1 === str.length) {
-            var fname = str.substr(0, op);
-            var params = str.substr(op + 1, ep - (op + 1)).split(',');
-            var alpha = 1;  // To allow case fallthrough.
-            switch (fname) {
-                case 'rgba':
-                    if (params.length !== 4) {
-                        setRgba(rgbaArr, 0, 0, 0, 1);
-                        return;
-                    }
-                    alpha = parseCssFloat(params.pop()); // jshint ignore:line
-                // Fall through.
-                case 'rgb':
-                    if (params.length !== 3) {
-                        setRgba(rgbaArr, 0, 0, 0, 1);
-                        return;
-                    }
-                    setRgba(rgbaArr,
-                        parseCssInt(params[0]),
-                        parseCssInt(params[1]),
-                        parseCssInt(params[2]),
-                        alpha
-                    );
-                    putToCache(colorStr, rgbaArr);
-                    return rgbaArr;
-                case 'hsla':
-                    if (params.length !== 4) {
-                        setRgba(rgbaArr, 0, 0, 0, 1);
-                        return;
-                    }
-                    params[3] = parseCssFloat(params[3]);
-                    hsla2rgba(params, rgbaArr);
-                    putToCache(colorStr, rgbaArr);
-                    return rgbaArr;
-                case 'hsl':
-                    if (params.length !== 3) {
-                        setRgba(rgbaArr, 0, 0, 0, 1);
-                        return;
-                    }
-                    hsla2rgba(params, rgbaArr);
-                    putToCache(colorStr, rgbaArr);
-                    return rgbaArr;
-                default:
-                    return;
-            }
-        }
-
-        setRgba(rgbaArr, 0, 0, 0, 1);
-        return;
-    }
-
-    /**
-     * @param {Array.<number>} hsla
-     * @param {Array.<number>} rgba
-     * @return {Array.<number>} rgba
-     */
-    function hsla2rgba(hsla, rgba) {
-        var h = (((parseFloat(hsla[0]) % 360) + 360) % 360) / 360;  // 0 .. 1
-        // NOTE(deanm): According to the CSS spec s/l should only be
-        // percentages, but we don't bother and let float or percentage.
-        var s = parseCssFloat(hsla[1]);
-        var l = parseCssFloat(hsla[2]);
-        var m2 = l <= 0.5 ? l * (s + 1) : l + s - l * s;
-        var m1 = l * 2 - m2;
-
-        rgba = rgba || [];
-        setRgba(rgba,
-            clampCssByte(cssHueToRgb(m1, m2, h + 1 / 3) * 255),
-            clampCssByte(cssHueToRgb(m1, m2, h) * 255),
-            clampCssByte(cssHueToRgb(m1, m2, h - 1 / 3) * 255),
-            1
-        );
-
-        if (hsla.length === 4) {
-            rgba[3] = hsla[3];
-        }
-
-        return rgba;
-    }
-
-    /**
-     * @param {Array.<number>} rgba
-     * @return {Array.<number>} hsla
-     */
-    function rgba2hsla(rgba) {
-        if (!rgba) {
-            return;
-        }
-
-        // RGB from 0 to 255
-        var R = rgba[0] / 255;
-        var G = rgba[1] / 255;
-        var B = rgba[2] / 255;
-
-        var vMin = Math.min(R, G, B); // Min. value of RGB
-        var vMax = Math.max(R, G, B); // Max. value of RGB
-        var delta = vMax - vMin; // Delta RGB value
-
-        var L = (vMax + vMin) / 2;
-        var H;
-        var S;
-        // HSL results from 0 to 1
-        if (delta === 0) {
-            H = 0;
-            S = 0;
-        }
-        else {
-            if (L < 0.5) {
-                S = delta / (vMax + vMin);
-            }
-            else {
-                S = delta / (2 - vMax - vMin);
-            }
-
-            var deltaR = (((vMax - R) / 6) + (delta / 2)) / delta;
-            var deltaG = (((vMax - G) / 6) + (delta / 2)) / delta;
-            var deltaB = (((vMax - B) / 6) + (delta / 2)) / delta;
-
-            if (R === vMax) {
-                H = deltaB - deltaG;
-            }
-            else if (G === vMax) {
-                H = (1 / 3) + deltaR - deltaB;
-            }
-            else if (B === vMax) {
-                H = (2 / 3) + deltaG - deltaR;
-            }
-
-            if (H < 0) {
-                H += 1;
-            }
-
-            if (H > 1) {
-                H -= 1;
-            }
-        }
-
-        var hsla = [H * 360, S, L];
-
-        if (rgba[3] != null) {
-            hsla.push(rgba[3]);
-        }
-
-        return hsla;
-    }
-
-    /**
-     * @param {string} color
-     * @param {number} level
-     * @return {string}
-     * @memberOf module:frender/util/color
-     */
-    function lift(color, level) {
-        var colorArr = parse(color);
-        if (colorArr) {
-            for (var i = 0; i < 3; i++) {
-                if (level < 0) {
-                    colorArr[i] = colorArr[i] * (1 - level) | 0;
-                }
-                else {
-                    colorArr[i] = ((255 - colorArr[i]) * level + colorArr[i]) | 0;
-                }
-            }
-            return stringify(colorArr, colorArr.length === 4 ? 'rgba' : 'rgb');
-        }
-    }
-
-    /**
-     * @param {string} color
-     * @return {string}
-     * @memberOf module:frender/util/color
-     */
-    function toHex(color, level) {
-        var colorArr = parse(color);
-        if (colorArr) {
-            return ((1 << 24) + (colorArr[0] << 16) + (colorArr[1] << 8) + (+colorArr[2])).toString(16).slice(1);
-        }
-    }
-
-    /**
-     * Map value to color. Faster than mapToColor methods because color is represented by rgba array.
-     * @param {number} normalizedValue A float between 0 and 1.
-     * @param {Array.<Array.<number>>} colors List of rgba color array
-     * @param {Array.<number>} [out] Mapped gba color array
-     * @return {Array.<number>} will be null/undefined if input illegal.
-     */
-    function fastMapToColor(normalizedValue, colors, out) {
-        if (!(colors && colors.length)
-            || !(normalizedValue >= 0 && normalizedValue <= 1)
-        ) {
-            return;
-        }
-
-        out = out || [];
-
-        var value = normalizedValue * (colors.length - 1);
-        var leftIndex = Math.floor(value);
-        var rightIndex = Math.ceil(value);
-        var leftColor = colors[leftIndex];
-        var rightColor = colors[rightIndex];
-        var dv = value - leftIndex;
-        out[0] = clampCssByte(lerp(leftColor[0], rightColor[0], dv));
-        out[1] = clampCssByte(lerp(leftColor[1], rightColor[1], dv));
-        out[2] = clampCssByte(lerp(leftColor[2], rightColor[2], dv));
-        out[3] = clampCssFloat(lerp(leftColor[3], rightColor[3], dv));
-
-        return out;
-    }
-    /**
-     * @param {number} normalizedValue A float between 0 and 1.
-     * @param {Array.<string>} colors Color list.
-     * @param {boolean=} fullOutput Default false.
-     * @return {(string|Object)} Result color. If fullOutput,
-     *                           return {color: ..., leftIndex: ..., rightIndex: ..., value: ...},
-     * @memberOf module:frender/util/color
-     */
-    function mapToColor(normalizedValue, colors, fullOutput) {
-        if (!(colors && colors.length)
-            || !(normalizedValue >= 0 && normalizedValue <= 1)
-        ) {
-            return;
-        }
-
-        var value = normalizedValue * (colors.length - 1);
-        var leftIndex = Math.floor(value);
-        var rightIndex = Math.ceil(value);
-        var leftColor = parse(colors[leftIndex]);
-        var rightColor = parse(colors[rightIndex]);
-        var dv = value - leftIndex;
-
-        var color = stringify(
-            [
-                clampCssByte(lerp(leftColor[0], rightColor[0], dv)),
-                clampCssByte(lerp(leftColor[1], rightColor[1], dv)),
-                clampCssByte(lerp(leftColor[2], rightColor[2], dv)),
-                clampCssFloat(lerp(leftColor[3], rightColor[3], dv))
-            ],
-            'rgba'
-        );
-
-        return fullOutput
-            ? {
-                color: color,
-                leftIndex: leftIndex,
-                rightIndex: rightIndex,
-                value: value
-            }
-            : color;
-    }
-
-    /**
-     * @param {string} color
-     * @param {number=} h 0 ~ 360, ignore when null.
-     * @param {number=} s 0 ~ 1, ignore when null.
-     * @param {number=} l 0 ~ 1, ignore when null.
-     * @return {string} Color string in rgba format.
-     * @memberOf module:frender/util/color
-     */
-    function modifyHSL(color, h, s, l) {
-        color = parse(color);
-
-        if (color) {
-            color = rgba2hsla(color);
-            h != null && (color[0] = clampCssAngle(h));
-            s != null && (color[1] = parseCssFloat(s));
-            l != null && (color[2] = parseCssFloat(l));
-
-            return stringify(hsla2rgba(color), 'rgba');
-        }
-    }
-
-    /**
-     * @param {string} color
-     * @param {number=} alpha 0 ~ 1
-     * @return {string} Color string in rgba format.
-     * @memberOf module:frender/util/color
-     */
-    function modifyAlpha(color, alpha) {
-        color = parse(color);
-
-        if (color && alpha != null) {
-            color[3] = clampCssFloat(alpha);
-            return stringify(color, 'rgba');
-        }
-    }
-
-    /**
-     * @param {Array.<number>} arrColor like [12,33,44,0.4]
-     * @param {string} type 'rgba', 'hsva', ...
-     * @return {string} Result color. (If input illegal, return undefined).
-     */
-    function stringify(arrColor, type) {
-        if (!arrColor || !arrColor.length) {
-            return;
-        }
-        var colorStr = arrColor[0] + ',' + arrColor[1] + ',' + arrColor[2];
-        if (type === 'rgba' || type === 'hsva' || type === 'hsla') {
-            colorStr += ',' + arrColor[3];
-        }
-        return type + '(' + colorStr + ')';
-    }
-
-    return {
-        parse: parse,
-        lift: lift,
-        toHex: toHex,
-        fastMapToColor: fastMapToColor,
-        mapToColor: mapToColor,
-        modifyHSL: modifyHSL,
-        modifyAlpha: modifyAlpha,
-        stringify: stringify
-    };
-});
-/**
  * @module frender/mixin/Animatable
  */
 define('frender/mixin/Animatable',['require','../animation/Animator','../core/util','../core/log'],function(require) {
@@ -12349,6 +11818,537 @@ define('frender/mixin/Transformable',['require','../core/matrix','../core/vector
     };
 
     return Transformable;
+});
+/**
+ * @module frender/tool/color
+ */
+define('frender/tool/color',['require','../core/LRU'],function(require) {
+    
+    var LRU = require('../core/LRU');
+
+    var kCSSColorTable = {
+        'transparent': [0,0,0,0], 'aliceblue': [240,248,255,1],
+        'antiquewhite': [250,235,215,1], 'aqua': [0,255,255,1],
+        'aquamarine': [127,255,212,1], 'azure': [240,255,255,1],
+        'beige': [245,245,220,1], 'bisque': [255,228,196,1],
+        'black': [0,0,0,1], 'blanchedalmond': [255,235,205,1],
+        'blue': [0,0,255,1], 'blueviolet': [138,43,226,1],
+        'brown': [165,42,42,1], 'burlywood': [222,184,135,1],
+        'cadetblue': [95,158,160,1], 'chartreuse': [127,255,0,1],
+        'chocolate': [210,105,30,1], 'coral': [255,127,80,1],
+        'cornflowerblue': [100,149,237,1], 'cornsilk': [255,248,220,1],
+        'crimson': [220,20,60,1], 'cyan': [0,255,255,1],
+        'darkblue': [0,0,139,1], 'darkcyan': [0,139,139,1],
+        'darkgoldenrod': [184,134,11,1], 'darkgray': [169,169,169,1],
+        'darkgreen': [0,100,0,1], 'darkgrey': [169,169,169,1],
+        'darkkhaki': [189,183,107,1], 'darkmagenta': [139,0,139,1],
+        'darkolivegreen': [85,107,47,1], 'darkorange': [255,140,0,1],
+        'darkorchid': [153,50,204,1], 'darkred': [139,0,0,1],
+        'darksalmon': [233,150,122,1], 'darkseagreen': [143,188,143,1],
+        'darkslateblue': [72,61,139,1], 'darkslategray': [47,79,79,1],
+        'darkslategrey': [47,79,79,1], 'darkturquoise': [0,206,209,1],
+        'darkviolet': [148,0,211,1], 'deeppink': [255,20,147,1],
+        'deepskyblue': [0,191,255,1], 'dimgray': [105,105,105,1],
+        'dimgrey': [105,105,105,1], 'dodgerblue': [30,144,255,1],
+        'firebrick': [178,34,34,1], 'floralwhite': [255,250,240,1],
+        'forestgreen': [34,139,34,1], 'fuchsia': [255,0,255,1],
+        'gainsboro': [220,220,220,1], 'ghostwhite': [248,248,255,1],
+        'gold': [255,215,0,1], 'goldenrod': [218,165,32,1],
+        'gray': [128,128,128,1], 'green': [0,128,0,1],
+        'greenyellow': [173,255,47,1], 'grey': [128,128,128,1],
+        'honeydew': [240,255,240,1], 'hotpink': [255,105,180,1],
+        'indianred': [205,92,92,1], 'indigo': [75,0,130,1],
+        'ivory': [255,255,240,1], 'khaki': [240,230,140,1],
+        'lavender': [230,230,250,1], 'lavenderblush': [255,240,245,1],
+        'lawngreen': [124,252,0,1], 'lemonchiffon': [255,250,205,1],
+        'lightblue': [173,216,230,1], 'lightcoral': [240,128,128,1],
+        'lightcyan': [224,255,255,1], 'lightgoldenrodyellow': [250,250,210,1],
+        'lightgray': [211,211,211,1], 'lightgreen': [144,238,144,1],
+        'lightgrey': [211,211,211,1], 'lightpink': [255,182,193,1],
+        'lightsalmon': [255,160,122,1], 'lightseagreen': [32,178,170,1],
+        'lightskyblue': [135,206,250,1], 'lightslategray': [119,136,153,1],
+        'lightslategrey': [119,136,153,1], 'lightsteelblue': [176,196,222,1],
+        'lightyellow': [255,255,224,1], 'lime': [0,255,0,1],
+        'limegreen': [50,205,50,1], 'linen': [250,240,230,1],
+        'magenta': [255,0,255,1], 'maroon': [128,0,0,1],
+        'mediumaquamarine': [102,205,170,1], 'mediumblue': [0,0,205,1],
+        'mediumorchid': [186,85,211,1], 'mediumpurple': [147,112,219,1],
+        'mediumseagreen': [60,179,113,1], 'mediumslateblue': [123,104,238,1],
+        'mediumspringgreen': [0,250,154,1], 'mediumturquoise': [72,209,204,1],
+        'mediumvioletred': [199,21,133,1], 'midnightblue': [25,25,112,1],
+        'mintcream': [245,255,250,1], 'mistyrose': [255,228,225,1],
+        'moccasin': [255,228,181,1], 'navajowhite': [255,222,173,1],
+        'navy': [0,0,128,1], 'oldlace': [253,245,230,1],
+        'olive': [128,128,0,1], 'olivedrab': [107,142,35,1],
+        'orange': [255,165,0,1], 'orangered': [255,69,0,1],
+        'orchid': [218,112,214,1], 'palegoldenrod': [238,232,170,1],
+        'palegreen': [152,251,152,1], 'paleturquoise': [175,238,238,1],
+        'palevioletred': [219,112,147,1], 'papayawhip': [255,239,213,1],
+        'peachpuff': [255,218,185,1], 'peru': [205,133,63,1],
+        'pink': [255,192,203,1], 'plum': [221,160,221,1],
+        'powderblue': [176,224,230,1], 'purple': [128,0,128,1],
+        'red': [255,0,0,1], 'rosybrown': [188,143,143,1],
+        'royalblue': [65,105,225,1], 'saddlebrown': [139,69,19,1],
+        'salmon': [250,128,114,1], 'sandybrown': [244,164,96,1],
+        'seagreen': [46,139,87,1], 'seashell': [255,245,238,1],
+        'sienna': [160,82,45,1], 'silver': [192,192,192,1],
+        'skyblue': [135,206,235,1], 'slateblue': [106,90,205,1],
+        'slategray': [112,128,144,1], 'slategrey': [112,128,144,1],
+        'snow': [255,250,250,1], 'springgreen': [0,255,127,1],
+        'steelblue': [70,130,180,1], 'tan': [210,180,140,1],
+        'teal': [0,128,128,1], 'thistle': [216,191,216,1],
+        'tomato': [255,99,71,1], 'turquoise': [64,224,208,1],
+        'violet': [238,130,238,1], 'wheat': [245,222,179,1],
+        'white': [255,255,255,1], 'whitesmoke': [245,245,245,1],
+        'yellow': [255,255,0,1], 'yellowgreen': [154,205,50,1]
+    };
+
+    function clampCssByte(i) {  // Clamp to integer 0 .. 255.
+        i = Math.round(i);  // Seems to be what Chrome does (vs truncation).
+        return i < 0 ? 0 : i > 255 ? 255 : i;
+    }
+
+    function clampCssAngle(i) {  // Clamp to integer 0 .. 360.
+        i = Math.round(i);  // Seems to be what Chrome does (vs truncation).
+        return i < 0 ? 0 : i > 360 ? 360 : i;
+    }
+
+    function clampCssFloat(f) {  // Clamp to float 0.0 .. 1.0.
+        return f < 0 ? 0 : f > 1 ? 1 : f;
+    }
+
+    function parseCssInt(str) {  // int or percentage.
+        if (str.length && str.charAt(str.length - 1) === '%') {
+            return clampCssByte(parseFloat(str) / 100 * 255);
+        }
+        return clampCssByte(parseInt(str, 10));
+    }
+
+    function parseCssFloat(str) {  // float or percentage.
+        if (str.length && str.charAt(str.length - 1) === '%') {
+            return clampCssFloat(parseFloat(str) / 100);
+        }
+        return clampCssFloat(parseFloat(str));
+    }
+
+    function cssHueToRgb(m1, m2, h) {
+        if (h < 0) {
+            h += 1;
+        }
+        else if (h > 1) {
+            h -= 1;
+        }
+
+        if (h * 6 < 1) {
+            return m1 + (m2 - m1) * h * 6;
+        }
+        if (h * 2 < 1) {
+            return m2;
+        }
+        if (h * 3 < 2) {
+            return m1 + (m2 - m1) * (2/3 - h) * 6;
+        }
+        return m1;
+    }
+
+    function lerp(a, b, p) {
+        return a + (b - a) * p;
+    }
+
+    function setRgba(out, r, g, b, a) {
+        out[0] = r; out[1] = g; out[2] = b; out[3] = a;
+        return out;
+    }
+    function copyRgba(out, a) {
+        out[0] = a[0]; out[1] = a[1]; out[2] = a[2]; out[3] = a[3];
+        return out;
+    }
+    var colorCache = new LRU(20);
+    var lastRemovedArr = null;
+    function putToCache(colorStr, rgbaArr) {
+        // Reuse removed array
+        if (lastRemovedArr) {
+            copyRgba(lastRemovedArr, rgbaArr);
+        }
+        lastRemovedArr = colorCache.put(colorStr, lastRemovedArr || (rgbaArr.slice()));
+    }
+    /**
+     * @param {string} colorStr
+     * @param {Array.<number>} out
+     * @return {Array.<number>}
+     * @memberOf module:frender/util/color
+     */
+    function parse(colorStr, rgbaArr) {
+        if (!colorStr) {
+            return;
+        }
+        rgbaArr = rgbaArr || [];
+
+        var cached = colorCache.get(colorStr);
+        if (cached) {
+            return copyRgba(rgbaArr, cached);
+        }
+
+        // colorStr may be not string
+        colorStr = colorStr + '';
+        // Remove all whitespace, not compliant, but should just be more accepting.
+        var str = colorStr.replace(/ /g, '').toLowerCase();
+
+        // Color keywords (and transparent) lookup.
+        if (str in kCSSColorTable) {
+            copyRgba(rgbaArr, kCSSColorTable[str]);
+            putToCache(colorStr, rgbaArr);
+            return rgbaArr;
+        }
+
+        // #abc and #abc123 syntax.
+        if (str.charAt(0) === '#') {
+            if (str.length === 4) {
+                var iv = parseInt(str.substr(1), 16);  // TODO(deanm): Stricter parsing.
+                if (!(iv >= 0 && iv <= 0xfff)) {
+                    setRgba(rgbaArr, 0, 0, 0, 1);
+                    return;  // Covers NaN.
+                }
+                setRgba(rgbaArr,
+                    ((iv & 0xf00) >> 4) | ((iv & 0xf00) >> 8),
+                    (iv & 0xf0) | ((iv & 0xf0) >> 4),
+                    (iv & 0xf) | ((iv & 0xf) << 4),
+                    1
+                );
+                putToCache(colorStr, rgbaArr);
+                return rgbaArr;
+            }
+            else if (str.length === 7) {
+                var iv = parseInt(str.substr(1), 16);  // TODO(deanm): Stricter parsing.
+                if (!(iv >= 0 && iv <= 0xffffff)) {
+                    setRgba(rgbaArr, 0, 0, 0, 1);
+                    return;  // Covers NaN.
+                }
+                setRgba(rgbaArr,
+                    (iv & 0xff0000) >> 16,
+                    (iv & 0xff00) >> 8,
+                    iv & 0xff,
+                    1
+                );
+                putToCache(colorStr, rgbaArr);
+                return rgbaArr;
+            }
+
+            return;
+        }
+        var op = str.indexOf('('), ep = str.indexOf(')');
+        if (op !== -1 && ep + 1 === str.length) {
+            var fname = str.substr(0, op);
+            var params = str.substr(op + 1, ep - (op + 1)).split(',');
+            var alpha = 1;  // To allow case fallthrough.
+            switch (fname) {
+                case 'rgba':
+                    if (params.length !== 4) {
+                        setRgba(rgbaArr, 0, 0, 0, 1);
+                        return;
+                    }
+                    alpha = parseCssFloat(params.pop()); // jshint ignore:line
+                // Fall through.
+                case 'rgb':
+                    if (params.length !== 3) {
+                        setRgba(rgbaArr, 0, 0, 0, 1);
+                        return;
+                    }
+                    setRgba(rgbaArr,
+                        parseCssInt(params[0]),
+                        parseCssInt(params[1]),
+                        parseCssInt(params[2]),
+                        alpha
+                    );
+                    putToCache(colorStr, rgbaArr);
+                    return rgbaArr;
+                case 'hsla':
+                    if (params.length !== 4) {
+                        setRgba(rgbaArr, 0, 0, 0, 1);
+                        return;
+                    }
+                    params[3] = parseCssFloat(params[3]);
+                    hsla2rgba(params, rgbaArr);
+                    putToCache(colorStr, rgbaArr);
+                    return rgbaArr;
+                case 'hsl':
+                    if (params.length !== 3) {
+                        setRgba(rgbaArr, 0, 0, 0, 1);
+                        return;
+                    }
+                    hsla2rgba(params, rgbaArr);
+                    putToCache(colorStr, rgbaArr);
+                    return rgbaArr;
+                default:
+                    return;
+            }
+        }
+
+        setRgba(rgbaArr, 0, 0, 0, 1);
+        return;
+    }
+
+    /**
+     * @param {Array.<number>} hsla
+     * @param {Array.<number>} rgba
+     * @return {Array.<number>} rgba
+     */
+    function hsla2rgba(hsla, rgba) {
+        var h = (((parseFloat(hsla[0]) % 360) + 360) % 360) / 360;  // 0 .. 1
+        // NOTE(deanm): According to the CSS spec s/l should only be
+        // percentages, but we don't bother and let float or percentage.
+        var s = parseCssFloat(hsla[1]);
+        var l = parseCssFloat(hsla[2]);
+        var m2 = l <= 0.5 ? l * (s + 1) : l + s - l * s;
+        var m1 = l * 2 - m2;
+
+        rgba = rgba || [];
+        setRgba(rgba,
+            clampCssByte(cssHueToRgb(m1, m2, h + 1 / 3) * 255),
+            clampCssByte(cssHueToRgb(m1, m2, h) * 255),
+            clampCssByte(cssHueToRgb(m1, m2, h - 1 / 3) * 255),
+            1
+        );
+
+        if (hsla.length === 4) {
+            rgba[3] = hsla[3];
+        }
+
+        return rgba;
+    }
+
+    /**
+     * @param {Array.<number>} rgba
+     * @return {Array.<number>} hsla
+     */
+    function rgba2hsla(rgba) {
+        if (!rgba) {
+            return;
+        }
+
+        // RGB from 0 to 255
+        var R = rgba[0] / 255;
+        var G = rgba[1] / 255;
+        var B = rgba[2] / 255;
+
+        var vMin = Math.min(R, G, B); // Min. value of RGB
+        var vMax = Math.max(R, G, B); // Max. value of RGB
+        var delta = vMax - vMin; // Delta RGB value
+
+        var L = (vMax + vMin) / 2;
+        var H;
+        var S;
+        // HSL results from 0 to 1
+        if (delta === 0) {
+            H = 0;
+            S = 0;
+        }
+        else {
+            if (L < 0.5) {
+                S = delta / (vMax + vMin);
+            }
+            else {
+                S = delta / (2 - vMax - vMin);
+            }
+
+            var deltaR = (((vMax - R) / 6) + (delta / 2)) / delta;
+            var deltaG = (((vMax - G) / 6) + (delta / 2)) / delta;
+            var deltaB = (((vMax - B) / 6) + (delta / 2)) / delta;
+
+            if (R === vMax) {
+                H = deltaB - deltaG;
+            }
+            else if (G === vMax) {
+                H = (1 / 3) + deltaR - deltaB;
+            }
+            else if (B === vMax) {
+                H = (2 / 3) + deltaG - deltaR;
+            }
+
+            if (H < 0) {
+                H += 1;
+            }
+
+            if (H > 1) {
+                H -= 1;
+            }
+        }
+
+        var hsla = [H * 360, S, L];
+
+        if (rgba[3] != null) {
+            hsla.push(rgba[3]);
+        }
+
+        return hsla;
+    }
+
+    /**
+     * @param {string} color
+     * @param {number} level
+     * @return {string}
+     * @memberOf module:frender/util/color
+     */
+    function lift(color, level) {
+        var colorArr = parse(color);
+        if (colorArr) {
+            for (var i = 0; i < 3; i++) {
+                if (level < 0) {
+                    colorArr[i] = colorArr[i] * (1 - level) | 0;
+                }
+                else {
+                    colorArr[i] = ((255 - colorArr[i]) * level + colorArr[i]) | 0;
+                }
+            }
+            return stringify(colorArr, colorArr.length === 4 ? 'rgba' : 'rgb');
+        }
+    }
+
+    /**
+     * @param {string} color
+     * @return {string}
+     * @memberOf module:frender/util/color
+     */
+    function toHex(color, level) {
+        var colorArr = parse(color);
+        if (colorArr) {
+            return ((1 << 24) + (colorArr[0] << 16) + (colorArr[1] << 8) + (+colorArr[2])).toString(16).slice(1);
+        }
+    }
+
+    /**
+     * Map value to color. Faster than mapToColor methods because color is represented by rgba array.
+     * @param {number} normalizedValue A float between 0 and 1.
+     * @param {Array.<Array.<number>>} colors List of rgba color array
+     * @param {Array.<number>} [out] Mapped gba color array
+     * @return {Array.<number>} will be null/undefined if input illegal.
+     */
+    function fastMapToColor(normalizedValue, colors, out) {
+        if (!(colors && colors.length)
+            || !(normalizedValue >= 0 && normalizedValue <= 1)
+        ) {
+            return;
+        }
+
+        out = out || [];
+
+        var value = normalizedValue * (colors.length - 1);
+        var leftIndex = Math.floor(value);
+        var rightIndex = Math.ceil(value);
+        var leftColor = colors[leftIndex];
+        var rightColor = colors[rightIndex];
+        var dv = value - leftIndex;
+        out[0] = clampCssByte(lerp(leftColor[0], rightColor[0], dv));
+        out[1] = clampCssByte(lerp(leftColor[1], rightColor[1], dv));
+        out[2] = clampCssByte(lerp(leftColor[2], rightColor[2], dv));
+        out[3] = clampCssFloat(lerp(leftColor[3], rightColor[3], dv));
+
+        return out;
+    }
+    /**
+     * @param {number} normalizedValue A float between 0 and 1.
+     * @param {Array.<string>} colors Color list.
+     * @param {boolean=} fullOutput Default false.
+     * @return {(string|Object)} Result color. If fullOutput,
+     *                           return {color: ..., leftIndex: ..., rightIndex: ..., value: ...},
+     * @memberOf module:frender/util/color
+     */
+    function mapToColor(normalizedValue, colors, fullOutput) {
+        if (!(colors && colors.length)
+            || !(normalizedValue >= 0 && normalizedValue <= 1)
+        ) {
+            return;
+        }
+
+        var value = normalizedValue * (colors.length - 1);
+        var leftIndex = Math.floor(value);
+        var rightIndex = Math.ceil(value);
+        var leftColor = parse(colors[leftIndex]);
+        var rightColor = parse(colors[rightIndex]);
+        var dv = value - leftIndex;
+
+        var color = stringify(
+            [
+                clampCssByte(lerp(leftColor[0], rightColor[0], dv)),
+                clampCssByte(lerp(leftColor[1], rightColor[1], dv)),
+                clampCssByte(lerp(leftColor[2], rightColor[2], dv)),
+                clampCssFloat(lerp(leftColor[3], rightColor[3], dv))
+            ],
+            'rgba'
+        );
+
+        return fullOutput
+            ? {
+                color: color,
+                leftIndex: leftIndex,
+                rightIndex: rightIndex,
+                value: value
+            }
+            : color;
+    }
+
+    /**
+     * @param {string} color
+     * @param {number=} h 0 ~ 360, ignore when null.
+     * @param {number=} s 0 ~ 1, ignore when null.
+     * @param {number=} l 0 ~ 1, ignore when null.
+     * @return {string} Color string in rgba format.
+     * @memberOf module:frender/util/color
+     */
+    function modifyHSL(color, h, s, l) {
+        color = parse(color);
+
+        if (color) {
+            color = rgba2hsla(color);
+            h != null && (color[0] = clampCssAngle(h));
+            s != null && (color[1] = parseCssFloat(s));
+            l != null && (color[2] = parseCssFloat(l));
+
+            return stringify(hsla2rgba(color), 'rgba');
+        }
+    }
+
+    /**
+     * @param {string} color
+     * @param {number=} alpha 0 ~ 1
+     * @return {string} Color string in rgba format.
+     * @memberOf module:frender/util/color
+     */
+    function modifyAlpha(color, alpha) {
+        color = parse(color);
+
+        if (color && alpha != null) {
+            color[3] = clampCssFloat(alpha);
+            return stringify(color, 'rgba');
+        }
+    }
+
+    /**
+     * @param {Array.<number>} arrColor like [12,33,44,0.4]
+     * @param {string} type 'rgba', 'hsva', ...
+     * @return {string} Result color. (If input illegal, return undefined).
+     */
+    function stringify(arrColor, type) {
+        if (!arrColor || !arrColor.length) {
+            return;
+        }
+        var colorStr = arrColor[0] + ',' + arrColor[1] + ',' + arrColor[2];
+        if (type === 'rgba' || type === 'hsva' || type === 'hsla') {
+            colorStr += ',' + arrColor[3];
+        }
+        return type + '(' + colorStr + ')';
+    }
+
+    return {
+        parse: parse,
+        lift: lift,
+        toHex: toHex,
+        fastMapToColor: fastMapToColor,
+        mapToColor: mapToColor,
+        modifyHSL: modifyHSL,
+        modifyAlpha: modifyAlpha,
+        stringify: stringify
+    };
 });
 define('frender/vml/core',['require','exports','module','../core/env'],function (require, exports, module) {
 
@@ -14987,7 +14987,7 @@ define('frender/graphic/shape/Rose',['require','../Path'],function (require) {
 			this._initElement();
 		},
 		drawLine: function (start, end) {
-			var code = this._id + '.drawLine(zr.getId('+start.id+'), zr.getId('+end.id+')';
+			var code = this._id + '.drawLine(zr.getId('+start.id+'), zr.getId('+end.id+'))';
             this._zr.process.push(code);
             var that = this;
 			var group = new Group();
