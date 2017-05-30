@@ -3988,6 +3988,323 @@ define('frender/animation/requestAnimationFrame',['require'],function(require) {
                                     setTimeout(func, 16);
                                 };
 });
+/**
+ * Group是一个容器，可以插入子节点，Group的变换也会被应用到子节点上
+ * @module frender/graphic/Group
+ * @example
+ *     var Group = require('frender/container/Group');
+ *     var Circle = require('frender/graphic/shape/Circle');
+ *     var g = new Group();
+ *     g.position[0] = 100;
+ *     g.position[1] = 100;
+ *     g.add(new Circle({
+ *         style: {
+ *             x: 100,
+ *             y: 100,
+ *             r: 20,
+ *         }
+ *     }));
+ *     zr.add(g);
+ */
+define('frender/container/Group',['require','../core/util','../Element','../core/BoundingRect'],function (require) {
+
+    var zrUtil = require('../core/util');
+    var Element = require('../Element');
+    var BoundingRect = require('../core/BoundingRect');
+
+    /**
+     * @alias module:frender/graphic/Group
+     * @constructor
+     * @extends module:frender/mixin/Transformable
+     * @extends module:frender/mixin/Eventful
+     */
+    var Group = function (opts) {
+
+        opts = opts || {};
+
+        Element.call(this, opts);
+
+        for (var key in opts) {
+            if (opts.hasOwnProperty(key)) {
+                this[key] = opts[key];
+            }
+        }
+
+        this._children = [];
+
+        this.__storage = null;
+
+        this.__dirty = true;
+    };
+
+    Group.prototype = {
+
+        constructor: Group,
+
+        isGroup: true,
+
+        /**
+         * @type {string}
+         */
+        type: 'group',
+
+        /**
+         * 所有子孙元素是否响应鼠标事件
+         * @name module:/frender/container/Group#silent
+         * @type {boolean}
+         * @default false
+         */
+        silent: false,
+
+        /**
+         * @return {Array.<module:frender/Element>}
+         */
+        children: function () {
+            return this._children.slice();
+        },
+
+        /**
+         * 获取指定 index 的儿子节点
+         * @param  {number} idx
+         * @return {module:frender/Element}
+         */
+        childAt: function (idx) {
+            return this._children[idx];
+        },
+
+        /**
+         * 获取指定名字的儿子节点
+         * @param  {string} name
+         * @return {module:frender/Element}
+         */
+        childOfName: function (name) {
+            var children = this._children;
+            for (var i = 0; i < children.length; i++) {
+                if (children[i].name === name) {
+                    return children[i];
+                }
+             }
+        },
+
+        /**
+         * @return {number}
+         */
+        childCount: function () {
+            return this._children.length;
+        },
+
+        /**
+         * 添加子节点到最后
+         * @param {module:frender/Element} child
+         */
+        add: function (child) {
+            if (child && child !== this && child.parent !== this) {
+
+                this._children.push(child);
+
+                this._doAdd(child);
+            }
+
+            return this;
+        },
+
+        /**
+         * 添加子节点在 nextSibling 之前
+         * @param {module:frender/Element} child
+         * @param {module:frender/Element} nextSibling
+         */
+        addBefore: function (child, nextSibling) {
+            if (child && child !== this && child.parent !== this
+                && nextSibling && nextSibling.parent === this) {
+
+                var children = this._children;
+                var idx = children.indexOf(nextSibling);
+
+                if (idx >= 0) {
+                    children.splice(idx, 0, child);
+                    this._doAdd(child);
+                }
+            }
+
+            return this;
+        },
+
+        _doAdd: function (child) {
+            if (child.parent) {
+                child.parent.remove(child);
+            }
+
+            child.parent = this;
+
+            var storage = this.__storage;
+            var zr = this.__zr;
+            if (storage && storage !== child.__storage) {
+
+                storage.addToMap(child);
+
+                if (child instanceof Group) {
+                    child.addChildrenToStorage(storage);
+                }
+            }
+
+            zr && zr.refresh();
+        },
+
+        /**
+         * 移除子节点
+         * @param {module:frender/Element} child
+         */
+        remove: function (child) {
+            var zr = this.__zr;
+            var storage = this.__storage;
+            var children = this._children;
+
+            var idx = zrUtil.indexOf(children, child);
+            if (idx < 0) {
+                return this;
+            }
+            children.splice(idx, 1);
+
+            child.parent = null;
+
+            if (storage) {
+
+                storage.delFromMap(child.id);
+
+                if (child instanceof Group) {
+                    child.delChildrenFromStorage(storage);
+                }
+            }
+
+            zr && zr.refresh();
+
+            return this;
+        },
+
+        /**
+         * 移除所有子节点
+         */
+        removeAll: function () {
+            var children = this._children;
+            var storage = this.__storage;
+            var child;
+            var i;
+            for (i = 0; i < children.length; i++) {
+                child = children[i];
+                if (storage) {
+                    storage.delFromMap(child.id);
+                    if (child instanceof Group) {
+                        child.delChildrenFromStorage(storage);
+                    }
+                }
+                child.parent = null;
+            }
+            children.length = 0;
+
+            return this;
+        },
+
+        /**
+         * 遍历所有子节点
+         * @param  {Function} cb
+         * @param  {}   context
+         */
+        eachChild: function (cb, context) {
+            var children = this._children;
+            for (var i = 0; i < children.length; i++) {
+                var child = children[i];
+                cb.call(context, child, i);
+            }
+            return this;
+        },
+
+        /**
+         * 深度优先遍历所有子孙节点
+         * @param  {Function} cb
+         * @param  {}   context
+         */
+        traverse: function (cb, context) {
+            for (var i = 0; i < this._children.length; i++) {
+                var child = this._children[i];
+                cb.call(context, child);
+
+                if (child.type === 'group') {
+                    child.traverse(cb, context);
+                }
+            }
+            return this;
+        },
+
+        addChildrenToStorage: function (storage) {
+            for (var i = 0; i < this._children.length; i++) {
+                var child = this._children[i];
+                storage.addToMap(child);
+                if (child instanceof Group) {
+                    child.addChildrenToStorage(storage);
+                }
+            }
+        },
+
+        delChildrenFromStorage: function (storage) {
+            for (var i = 0; i < this._children.length; i++) {
+                var child = this._children[i];
+                storage.delFromMap(child.id);
+                if (child instanceof Group) {
+                    child.delChildrenFromStorage(storage);
+                }
+            }
+        },
+
+        dirty: function () {
+            this.__dirty = true;
+            this.__zr && this.__zr.refresh();
+            return this;
+        },
+
+        /**
+         * @return {module:frender/core/BoundingRect}
+         */
+        getBoundingRect: function (includeChildren) {
+            // TODO Caching
+            var rect = null;
+            var tmpRect = new BoundingRect(0, 0, 0, 0);
+            var children = includeChildren || this._children;
+            var tmpMat = [];
+
+            for (var i = 0; i < children.length; i++) {
+                var child = children[i];
+                if (child.ignore || child.invisible) {
+                    continue;
+                }
+
+                var childRect = child.getBoundingRect();
+                var transform = child.getLocalTransform(tmpMat);
+                // TODO
+                // The boundingRect cacluated by transforming original
+                // rect may be bigger than the actual bundingRect when rotation
+                // is used. (Consider a circle rotated aginst its center, where
+                // the actual boundingRect should be the same as that not be
+                // rotated.) But we can not find better approach to calculate
+                // actual boundingRect yet, considering performance.
+                if (transform) {
+                    tmpRect.copy(childRect);
+                    tmpRect.applyTransform(transform);
+                    rect = rect || tmpRect.clone();
+                    rect.union(tmpRect);
+                }
+                else {
+                    rect = rect || childRect.clone();
+                    rect.union(childRect);
+                }
+            }
+            return rect || tmpRect;
+        }
+    };
+
+    zrUtil.inherits(Group, Element);
+
+    return Group;
+});
 define('frender/contain/arc',['require','./util'],function (require) {
 
     var normalizeRadian = require('./util').normalizeRadian;
@@ -4886,323 +5203,6 @@ define('frender/contain/windingLine',[],function () {
 
         return x_ > x ? dir : 0;
     };
-});
-/**
- * Group是一个容器，可以插入子节点，Group的变换也会被应用到子节点上
- * @module frender/graphic/Group
- * @example
- *     var Group = require('frender/container/Group');
- *     var Circle = require('frender/graphic/shape/Circle');
- *     var g = new Group();
- *     g.position[0] = 100;
- *     g.position[1] = 100;
- *     g.add(new Circle({
- *         style: {
- *             x: 100,
- *             y: 100,
- *             r: 20,
- *         }
- *     }));
- *     zr.add(g);
- */
-define('frender/container/Group',['require','../core/util','../Element','../core/BoundingRect'],function (require) {
-
-    var zrUtil = require('../core/util');
-    var Element = require('../Element');
-    var BoundingRect = require('../core/BoundingRect');
-
-    /**
-     * @alias module:frender/graphic/Group
-     * @constructor
-     * @extends module:frender/mixin/Transformable
-     * @extends module:frender/mixin/Eventful
-     */
-    var Group = function (opts) {
-
-        opts = opts || {};
-
-        Element.call(this, opts);
-
-        for (var key in opts) {
-            if (opts.hasOwnProperty(key)) {
-                this[key] = opts[key];
-            }
-        }
-
-        this._children = [];
-
-        this.__storage = null;
-
-        this.__dirty = true;
-    };
-
-    Group.prototype = {
-
-        constructor: Group,
-
-        isGroup: true,
-
-        /**
-         * @type {string}
-         */
-        type: 'group',
-
-        /**
-         * 所有子孙元素是否响应鼠标事件
-         * @name module:/frender/container/Group#silent
-         * @type {boolean}
-         * @default false
-         */
-        silent: false,
-
-        /**
-         * @return {Array.<module:frender/Element>}
-         */
-        children: function () {
-            return this._children.slice();
-        },
-
-        /**
-         * 获取指定 index 的儿子节点
-         * @param  {number} idx
-         * @return {module:frender/Element}
-         */
-        childAt: function (idx) {
-            return this._children[idx];
-        },
-
-        /**
-         * 获取指定名字的儿子节点
-         * @param  {string} name
-         * @return {module:frender/Element}
-         */
-        childOfName: function (name) {
-            var children = this._children;
-            for (var i = 0; i < children.length; i++) {
-                if (children[i].name === name) {
-                    return children[i];
-                }
-             }
-        },
-
-        /**
-         * @return {number}
-         */
-        childCount: function () {
-            return this._children.length;
-        },
-
-        /**
-         * 添加子节点到最后
-         * @param {module:frender/Element} child
-         */
-        add: function (child) {
-            if (child && child !== this && child.parent !== this) {
-
-                this._children.push(child);
-
-                this._doAdd(child);
-            }
-
-            return this;
-        },
-
-        /**
-         * 添加子节点在 nextSibling 之前
-         * @param {module:frender/Element} child
-         * @param {module:frender/Element} nextSibling
-         */
-        addBefore: function (child, nextSibling) {
-            if (child && child !== this && child.parent !== this
-                && nextSibling && nextSibling.parent === this) {
-
-                var children = this._children;
-                var idx = children.indexOf(nextSibling);
-
-                if (idx >= 0) {
-                    children.splice(idx, 0, child);
-                    this._doAdd(child);
-                }
-            }
-
-            return this;
-        },
-
-        _doAdd: function (child) {
-            if (child.parent) {
-                child.parent.remove(child);
-            }
-
-            child.parent = this;
-
-            var storage = this.__storage;
-            var zr = this.__zr;
-            if (storage && storage !== child.__storage) {
-
-                storage.addToMap(child);
-
-                if (child instanceof Group) {
-                    child.addChildrenToStorage(storage);
-                }
-            }
-
-            zr && zr.refresh();
-        },
-
-        /**
-         * 移除子节点
-         * @param {module:frender/Element} child
-         */
-        remove: function (child) {
-            var zr = this.__zr;
-            var storage = this.__storage;
-            var children = this._children;
-
-            var idx = zrUtil.indexOf(children, child);
-            if (idx < 0) {
-                return this;
-            }
-            children.splice(idx, 1);
-
-            child.parent = null;
-
-            if (storage) {
-
-                storage.delFromMap(child.id);
-
-                if (child instanceof Group) {
-                    child.delChildrenFromStorage(storage);
-                }
-            }
-
-            zr && zr.refresh();
-
-            return this;
-        },
-
-        /**
-         * 移除所有子节点
-         */
-        removeAll: function () {
-            var children = this._children;
-            var storage = this.__storage;
-            var child;
-            var i;
-            for (i = 0; i < children.length; i++) {
-                child = children[i];
-                if (storage) {
-                    storage.delFromMap(child.id);
-                    if (child instanceof Group) {
-                        child.delChildrenFromStorage(storage);
-                    }
-                }
-                child.parent = null;
-            }
-            children.length = 0;
-
-            return this;
-        },
-
-        /**
-         * 遍历所有子节点
-         * @param  {Function} cb
-         * @param  {}   context
-         */
-        eachChild: function (cb, context) {
-            var children = this._children;
-            for (var i = 0; i < children.length; i++) {
-                var child = children[i];
-                cb.call(context, child, i);
-            }
-            return this;
-        },
-
-        /**
-         * 深度优先遍历所有子孙节点
-         * @param  {Function} cb
-         * @param  {}   context
-         */
-        traverse: function (cb, context) {
-            for (var i = 0; i < this._children.length; i++) {
-                var child = this._children[i];
-                cb.call(context, child);
-
-                if (child.type === 'group') {
-                    child.traverse(cb, context);
-                }
-            }
-            return this;
-        },
-
-        addChildrenToStorage: function (storage) {
-            for (var i = 0; i < this._children.length; i++) {
-                var child = this._children[i];
-                storage.addToMap(child);
-                if (child instanceof Group) {
-                    child.addChildrenToStorage(storage);
-                }
-            }
-        },
-
-        delChildrenFromStorage: function (storage) {
-            for (var i = 0; i < this._children.length; i++) {
-                var child = this._children[i];
-                storage.delFromMap(child.id);
-                if (child instanceof Group) {
-                    child.delChildrenFromStorage(storage);
-                }
-            }
-        },
-
-        dirty: function () {
-            this.__dirty = true;
-            this.__zr && this.__zr.refresh();
-            return this;
-        },
-
-        /**
-         * @return {module:frender/core/BoundingRect}
-         */
-        getBoundingRect: function (includeChildren) {
-            // TODO Caching
-            var rect = null;
-            var tmpRect = new BoundingRect(0, 0, 0, 0);
-            var children = includeChildren || this._children;
-            var tmpMat = [];
-
-            for (var i = 0; i < children.length; i++) {
-                var child = children[i];
-                if (child.ignore || child.invisible) {
-                    continue;
-                }
-
-                var childRect = child.getBoundingRect();
-                var transform = child.getLocalTransform(tmpMat);
-                // TODO
-                // The boundingRect cacluated by transforming original
-                // rect may be bigger than the actual bundingRect when rotation
-                // is used. (Consider a circle rotated aginst its center, where
-                // the actual boundingRect should be the same as that not be
-                // rotated.) But we can not find better approach to calculate
-                // actual boundingRect yet, considering performance.
-                if (transform) {
-                    tmpRect.copy(childRect);
-                    tmpRect.applyTransform(transform);
-                    rect = rect || tmpRect.clone();
-                    rect.union(tmpRect);
-                }
-                else {
-                    rect = rect || childRect.clone();
-                    rect.union(childRect);
-                }
-            }
-            return rect || tmpRect;
-        }
-    };
-
-    zrUtil.inherits(Group, Element);
-
-    return Group;
 });
 /**
  * @author Yi Shen(https://github.com/pissang)
@@ -14987,7 +14987,9 @@ define('frender/graphic/shape/Rose',['require','../Path'],function (require) {
 			this._initElement();
 		},
 		drawLine: function (start, end) {
-			var code = this._id + '.drawLine(zr.getId('+start.id+'), zr.getId('+end.id+'))';
+			var sIndex = dirToIndex(start.dir);
+			var eIndex = dirToIndex(end.dir);
+			var code = this._id + '.drawLine('+start._parentId+'._rectCaps['+sIndex+'], '+end._parentId+'._rectCaps['+eIndex+'])';
             this._zr.process.push(code);
             var that = this;
 			var group = new Group();
@@ -15023,6 +15025,17 @@ define('frender/graphic/shape/Rose',['require','../Path'],function (require) {
 				arrow.setShape('points', points.slice(-2));
 			})
 			this._zr.add(group);
+			function dirToIndex(dir) {
+				if(dir == 'top') {
+					return 0;
+				} else if (dir == 'right') {
+					return 1;
+				} else if (dir == 'bottom') {
+					return 2;
+				} else if (dir == 'left') {
+					return 3;
+				}
+			}
 		},
         _handlerPolyline: function (start, end) {
             var startDir = start.dir,
@@ -15058,7 +15071,6 @@ define('frender/graphic/shape/Rose',['require','../Path'],function (require) {
 
                 return arr;
             }
-
 
         },
 		_initElement: function () {
@@ -15210,22 +15222,26 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 				arr.push({
 					x: source.x + source.width/2,
 					y: source.y - source.radius - 3,
-					dir: 'top'
+					dir: 'top',
+					_parentId: that._id
 				});
 				arr.push({
 					x: source.x + source.width + source.radius + 3 ,
 					y: source.y + source.height/2,
-					dir: 'right'
+					dir: 'right',
+					_parentId: that._id
 				});
 				arr.push({
 					x: source.x + source.width/2,
 					y: source.y + source.height + source.radius + 3,
-					dir: 'bottom'
+					dir: 'bottom',
+					_parentId: that._id
 				});
 				arr.push({
 					x: source.x - source.radius - 3,
 					y: source.y + source.height/2,
-					dir: 'left'
+					dir: 'left',
+					_parentId: that._id
 				});
 				return arr;
 			};
@@ -15242,6 +15258,7 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 			        zlevel: 100
 				});
 				circle.dir = arr[i].dir;
+				circle._parentId = arr[i]._parentId;
 				circle.follow = rect;
 				circle.shape_cp = util.clone(circle.shape);
 				group.add(circle);
@@ -15267,7 +15284,18 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 			return this._rect;
 		},
 		setTransform: function( transform ) {
-			this._rect.transform = transform;
+			if(!transform) return;
+			var shape = this._rect.shape;
+			if(Object.prototype.toString.call(shape) != '[object Object]') return;
+			shape.x += transform[4];
+			shape.y += transform[5];
+			//console.log(this._rect);
+			this._rect.setShape('x', shape.x);
+			this._rect.setShape('y', shape.y);
+			this._rectCaps.forEach(function(v){
+				v.setShape('cx', v.shape.x + transform[4]);
+				v.setShape('cy', v.shape.y + transform[5]);
+			})
 		},
 		getTransform: function() {
 			return this._rect.transform;

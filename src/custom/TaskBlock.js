@@ -102,22 +102,26 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 				arr.push({
 					x: source.x + source.width/2,
 					y: source.y - source.radius - 3,
-					dir: 'top'
+					dir: 'top',
+					_parentId: that._id
 				});
 				arr.push({
 					x: source.x + source.width + source.radius + 3 ,
 					y: source.y + source.height/2,
-					dir: 'right'
+					dir: 'right',
+					_parentId: that._id
 				});
 				arr.push({
 					x: source.x + source.width/2,
 					y: source.y + source.height + source.radius + 3,
-					dir: 'bottom'
+					dir: 'bottom',
+					_parentId: that._id
 				});
 				arr.push({
 					x: source.x - source.radius - 3,
 					y: source.y + source.height/2,
-					dir: 'left'
+					dir: 'left',
+					_parentId: that._id
 				});
 				return arr;
 			};
@@ -134,6 +138,7 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 			        zlevel: 100
 				});
 				circle.dir = arr[i].dir;
+				circle._parentId = arr[i]._parentId;
 				circle.follow = rect;
 				circle.shape_cp = util.clone(circle.shape);
 				group.add(circle);
@@ -159,7 +164,18 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 			return this._rect;
 		},
 		setTransform: function( transform ) {
-			this._rect.transform = transform;
+			if(!transform) return;
+			var shape = this._rect.shape;
+			if(Object.prototype.toString.call(shape) != '[object Object]') return;
+			shape.x += transform[4];
+			shape.y += transform[5];
+			//console.log(this._rect);
+			this._rect.setShape('x', shape.x);
+			this._rect.setShape('y', shape.y);
+			this._rectCaps.forEach(function(v){
+				v.setShape('cx', v.shape.x + transform[4]);
+				v.setShape('cy', v.shape.y + transform[5]);
+			})
 		},
 		getTransform: function() {
 			return this._rect.transform;

@@ -26,7 +26,9 @@
 			this._initElement();
 		},
 		drawLine: function (start, end) {
-			var code = this._id + '.drawLine(zr.getId('+start.id+'), zr.getId('+end.id+'))';
+			var sIndex = dirToIndex(start.dir);
+			var eIndex = dirToIndex(end.dir);
+			var code = this._id + '.drawLine('+start._parentId+'._rectCaps['+sIndex+'], '+end._parentId+'._rectCaps['+eIndex+'])';
             this._zr.process.push(code);
             var that = this;
 			var group = new Group();
@@ -62,6 +64,17 @@
 				arrow.setShape('points', points.slice(-2));
 			})
 			this._zr.add(group);
+			function dirToIndex(dir) {
+				if(dir == 'top') {
+					return 0;
+				} else if (dir == 'right') {
+					return 1;
+				} else if (dir == 'bottom') {
+					return 2;
+				} else if (dir == 'left') {
+					return 3;
+				}
+			}
 		},
         _handlerPolyline: function (start, end) {
             var startDir = start.dir,
@@ -97,7 +110,6 @@
 
                 return arr;
             }
-
 
         },
 		_initElement: function () {
