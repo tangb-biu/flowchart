@@ -3988,323 +3988,6 @@ define('frender/animation/requestAnimationFrame',['require'],function(require) {
                                     setTimeout(func, 16);
                                 };
 });
-/**
- * Group是一个容器，可以插入子节点，Group的变换也会被应用到子节点上
- * @module frender/graphic/Group
- * @example
- *     var Group = require('frender/container/Group');
- *     var Circle = require('frender/graphic/shape/Circle');
- *     var g = new Group();
- *     g.position[0] = 100;
- *     g.position[1] = 100;
- *     g.add(new Circle({
- *         style: {
- *             x: 100,
- *             y: 100,
- *             r: 20,
- *         }
- *     }));
- *     zr.add(g);
- */
-define('frender/container/Group',['require','../core/util','../Element','../core/BoundingRect'],function (require) {
-
-    var zrUtil = require('../core/util');
-    var Element = require('../Element');
-    var BoundingRect = require('../core/BoundingRect');
-
-    /**
-     * @alias module:frender/graphic/Group
-     * @constructor
-     * @extends module:frender/mixin/Transformable
-     * @extends module:frender/mixin/Eventful
-     */
-    var Group = function (opts) {
-
-        opts = opts || {};
-
-        Element.call(this, opts);
-
-        for (var key in opts) {
-            if (opts.hasOwnProperty(key)) {
-                this[key] = opts[key];
-            }
-        }
-
-        this._children = [];
-
-        this.__storage = null;
-
-        this.__dirty = true;
-    };
-
-    Group.prototype = {
-
-        constructor: Group,
-
-        isGroup: true,
-
-        /**
-         * @type {string}
-         */
-        type: 'group',
-
-        /**
-         * 所有子孙元素是否响应鼠标事件
-         * @name module:/frender/container/Group#silent
-         * @type {boolean}
-         * @default false
-         */
-        silent: false,
-
-        /**
-         * @return {Array.<module:frender/Element>}
-         */
-        children: function () {
-            return this._children.slice();
-        },
-
-        /**
-         * 获取指定 index 的儿子节点
-         * @param  {number} idx
-         * @return {module:frender/Element}
-         */
-        childAt: function (idx) {
-            return this._children[idx];
-        },
-
-        /**
-         * 获取指定名字的儿子节点
-         * @param  {string} name
-         * @return {module:frender/Element}
-         */
-        childOfName: function (name) {
-            var children = this._children;
-            for (var i = 0; i < children.length; i++) {
-                if (children[i].name === name) {
-                    return children[i];
-                }
-             }
-        },
-
-        /**
-         * @return {number}
-         */
-        childCount: function () {
-            return this._children.length;
-        },
-
-        /**
-         * 添加子节点到最后
-         * @param {module:frender/Element} child
-         */
-        add: function (child) {
-            if (child && child !== this && child.parent !== this) {
-
-                this._children.push(child);
-
-                this._doAdd(child);
-            }
-
-            return this;
-        },
-
-        /**
-         * 添加子节点在 nextSibling 之前
-         * @param {module:frender/Element} child
-         * @param {module:frender/Element} nextSibling
-         */
-        addBefore: function (child, nextSibling) {
-            if (child && child !== this && child.parent !== this
-                && nextSibling && nextSibling.parent === this) {
-
-                var children = this._children;
-                var idx = children.indexOf(nextSibling);
-
-                if (idx >= 0) {
-                    children.splice(idx, 0, child);
-                    this._doAdd(child);
-                }
-            }
-
-            return this;
-        },
-
-        _doAdd: function (child) {
-            if (child.parent) {
-                child.parent.remove(child);
-            }
-
-            child.parent = this;
-
-            var storage = this.__storage;
-            var zr = this.__zr;
-            if (storage && storage !== child.__storage) {
-
-                storage.addToMap(child);
-
-                if (child instanceof Group) {
-                    child.addChildrenToStorage(storage);
-                }
-            }
-
-            zr && zr.refresh();
-        },
-
-        /**
-         * 移除子节点
-         * @param {module:frender/Element} child
-         */
-        remove: function (child) {
-            var zr = this.__zr;
-            var storage = this.__storage;
-            var children = this._children;
-
-            var idx = zrUtil.indexOf(children, child);
-            if (idx < 0) {
-                return this;
-            }
-            children.splice(idx, 1);
-
-            child.parent = null;
-
-            if (storage) {
-
-                storage.delFromMap(child.id);
-
-                if (child instanceof Group) {
-                    child.delChildrenFromStorage(storage);
-                }
-            }
-
-            zr && zr.refresh();
-
-            return this;
-        },
-
-        /**
-         * 移除所有子节点
-         */
-        removeAll: function () {
-            var children = this._children;
-            var storage = this.__storage;
-            var child;
-            var i;
-            for (i = 0; i < children.length; i++) {
-                child = children[i];
-                if (storage) {
-                    storage.delFromMap(child.id);
-                    if (child instanceof Group) {
-                        child.delChildrenFromStorage(storage);
-                    }
-                }
-                child.parent = null;
-            }
-            children.length = 0;
-
-            return this;
-        },
-
-        /**
-         * 遍历所有子节点
-         * @param  {Function} cb
-         * @param  {}   context
-         */
-        eachChild: function (cb, context) {
-            var children = this._children;
-            for (var i = 0; i < children.length; i++) {
-                var child = children[i];
-                cb.call(context, child, i);
-            }
-            return this;
-        },
-
-        /**
-         * 深度优先遍历所有子孙节点
-         * @param  {Function} cb
-         * @param  {}   context
-         */
-        traverse: function (cb, context) {
-            for (var i = 0; i < this._children.length; i++) {
-                var child = this._children[i];
-                cb.call(context, child);
-
-                if (child.type === 'group') {
-                    child.traverse(cb, context);
-                }
-            }
-            return this;
-        },
-
-        addChildrenToStorage: function (storage) {
-            for (var i = 0; i < this._children.length; i++) {
-                var child = this._children[i];
-                storage.addToMap(child);
-                if (child instanceof Group) {
-                    child.addChildrenToStorage(storage);
-                }
-            }
-        },
-
-        delChildrenFromStorage: function (storage) {
-            for (var i = 0; i < this._children.length; i++) {
-                var child = this._children[i];
-                storage.delFromMap(child.id);
-                if (child instanceof Group) {
-                    child.delChildrenFromStorage(storage);
-                }
-            }
-        },
-
-        dirty: function () {
-            this.__dirty = true;
-            this.__zr && this.__zr.refresh();
-            return this;
-        },
-
-        /**
-         * @return {module:frender/core/BoundingRect}
-         */
-        getBoundingRect: function (includeChildren) {
-            // TODO Caching
-            var rect = null;
-            var tmpRect = new BoundingRect(0, 0, 0, 0);
-            var children = includeChildren || this._children;
-            var tmpMat = [];
-
-            for (var i = 0; i < children.length; i++) {
-                var child = children[i];
-                if (child.ignore || child.invisible) {
-                    continue;
-                }
-
-                var childRect = child.getBoundingRect();
-                var transform = child.getLocalTransform(tmpMat);
-                // TODO
-                // The boundingRect cacluated by transforming original
-                // rect may be bigger than the actual bundingRect when rotation
-                // is used. (Consider a circle rotated aginst its center, where
-                // the actual boundingRect should be the same as that not be
-                // rotated.) But we can not find better approach to calculate
-                // actual boundingRect yet, considering performance.
-                if (transform) {
-                    tmpRect.copy(childRect);
-                    tmpRect.applyTransform(transform);
-                    rect = rect || tmpRect.clone();
-                    rect.union(tmpRect);
-                }
-                else {
-                    rect = rect || childRect.clone();
-                    rect.union(childRect);
-                }
-            }
-            return rect || tmpRect;
-        }
-    };
-
-    zrUtil.inherits(Group, Element);
-
-    return Group;
-});
 define('frender/contain/arc',['require','./util'],function (require) {
 
     var normalizeRadian = require('./util').normalizeRadian;
@@ -5203,6 +4886,323 @@ define('frender/contain/windingLine',[],function () {
 
         return x_ > x ? dir : 0;
     };
+});
+/**
+ * Group是一个容器，可以插入子节点，Group的变换也会被应用到子节点上
+ * @module frender/graphic/Group
+ * @example
+ *     var Group = require('frender/container/Group');
+ *     var Circle = require('frender/graphic/shape/Circle');
+ *     var g = new Group();
+ *     g.position[0] = 100;
+ *     g.position[1] = 100;
+ *     g.add(new Circle({
+ *         style: {
+ *             x: 100,
+ *             y: 100,
+ *             r: 20,
+ *         }
+ *     }));
+ *     zr.add(g);
+ */
+define('frender/container/Group',['require','../core/util','../Element','../core/BoundingRect'],function (require) {
+
+    var zrUtil = require('../core/util');
+    var Element = require('../Element');
+    var BoundingRect = require('../core/BoundingRect');
+
+    /**
+     * @alias module:frender/graphic/Group
+     * @constructor
+     * @extends module:frender/mixin/Transformable
+     * @extends module:frender/mixin/Eventful
+     */
+    var Group = function (opts) {
+
+        opts = opts || {};
+
+        Element.call(this, opts);
+
+        for (var key in opts) {
+            if (opts.hasOwnProperty(key)) {
+                this[key] = opts[key];
+            }
+        }
+
+        this._children = [];
+
+        this.__storage = null;
+
+        this.__dirty = true;
+    };
+
+    Group.prototype = {
+
+        constructor: Group,
+
+        isGroup: true,
+
+        /**
+         * @type {string}
+         */
+        type: 'group',
+
+        /**
+         * 所有子孙元素是否响应鼠标事件
+         * @name module:/frender/container/Group#silent
+         * @type {boolean}
+         * @default false
+         */
+        silent: false,
+
+        /**
+         * @return {Array.<module:frender/Element>}
+         */
+        children: function () {
+            return this._children.slice();
+        },
+
+        /**
+         * 获取指定 index 的儿子节点
+         * @param  {number} idx
+         * @return {module:frender/Element}
+         */
+        childAt: function (idx) {
+            return this._children[idx];
+        },
+
+        /**
+         * 获取指定名字的儿子节点
+         * @param  {string} name
+         * @return {module:frender/Element}
+         */
+        childOfName: function (name) {
+            var children = this._children;
+            for (var i = 0; i < children.length; i++) {
+                if (children[i].name === name) {
+                    return children[i];
+                }
+             }
+        },
+
+        /**
+         * @return {number}
+         */
+        childCount: function () {
+            return this._children.length;
+        },
+
+        /**
+         * 添加子节点到最后
+         * @param {module:frender/Element} child
+         */
+        add: function (child) {
+            if (child && child !== this && child.parent !== this) {
+
+                this._children.push(child);
+
+                this._doAdd(child);
+            }
+
+            return this;
+        },
+
+        /**
+         * 添加子节点在 nextSibling 之前
+         * @param {module:frender/Element} child
+         * @param {module:frender/Element} nextSibling
+         */
+        addBefore: function (child, nextSibling) {
+            if (child && child !== this && child.parent !== this
+                && nextSibling && nextSibling.parent === this) {
+
+                var children = this._children;
+                var idx = children.indexOf(nextSibling);
+
+                if (idx >= 0) {
+                    children.splice(idx, 0, child);
+                    this._doAdd(child);
+                }
+            }
+
+            return this;
+        },
+
+        _doAdd: function (child) {
+            if (child.parent) {
+                child.parent.remove(child);
+            }
+
+            child.parent = this;
+
+            var storage = this.__storage;
+            var zr = this.__zr;
+            if (storage && storage !== child.__storage) {
+
+                storage.addToMap(child);
+
+                if (child instanceof Group) {
+                    child.addChildrenToStorage(storage);
+                }
+            }
+
+            zr && zr.refresh();
+        },
+
+        /**
+         * 移除子节点
+         * @param {module:frender/Element} child
+         */
+        remove: function (child) {
+            var zr = this.__zr;
+            var storage = this.__storage;
+            var children = this._children;
+
+            var idx = zrUtil.indexOf(children, child);
+            if (idx < 0) {
+                return this;
+            }
+            children.splice(idx, 1);
+
+            child.parent = null;
+
+            if (storage) {
+
+                storage.delFromMap(child.id);
+
+                if (child instanceof Group) {
+                    child.delChildrenFromStorage(storage);
+                }
+            }
+
+            zr && zr.refresh();
+
+            return this;
+        },
+
+        /**
+         * 移除所有子节点
+         */
+        removeAll: function () {
+            var children = this._children;
+            var storage = this.__storage;
+            var child;
+            var i;
+            for (i = 0; i < children.length; i++) {
+                child = children[i];
+                if (storage) {
+                    storage.delFromMap(child.id);
+                    if (child instanceof Group) {
+                        child.delChildrenFromStorage(storage);
+                    }
+                }
+                child.parent = null;
+            }
+            children.length = 0;
+
+            return this;
+        },
+
+        /**
+         * 遍历所有子节点
+         * @param  {Function} cb
+         * @param  {}   context
+         */
+        eachChild: function (cb, context) {
+            var children = this._children;
+            for (var i = 0; i < children.length; i++) {
+                var child = children[i];
+                cb.call(context, child, i);
+            }
+            return this;
+        },
+
+        /**
+         * 深度优先遍历所有子孙节点
+         * @param  {Function} cb
+         * @param  {}   context
+         */
+        traverse: function (cb, context) {
+            for (var i = 0; i < this._children.length; i++) {
+                var child = this._children[i];
+                cb.call(context, child);
+
+                if (child.type === 'group') {
+                    child.traverse(cb, context);
+                }
+            }
+            return this;
+        },
+
+        addChildrenToStorage: function (storage) {
+            for (var i = 0; i < this._children.length; i++) {
+                var child = this._children[i];
+                storage.addToMap(child);
+                if (child instanceof Group) {
+                    child.addChildrenToStorage(storage);
+                }
+            }
+        },
+
+        delChildrenFromStorage: function (storage) {
+            for (var i = 0; i < this._children.length; i++) {
+                var child = this._children[i];
+                storage.delFromMap(child.id);
+                if (child instanceof Group) {
+                    child.delChildrenFromStorage(storage);
+                }
+            }
+        },
+
+        dirty: function () {
+            this.__dirty = true;
+            this.__zr && this.__zr.refresh();
+            return this;
+        },
+
+        /**
+         * @return {module:frender/core/BoundingRect}
+         */
+        getBoundingRect: function (includeChildren) {
+            // TODO Caching
+            var rect = null;
+            var tmpRect = new BoundingRect(0, 0, 0, 0);
+            var children = includeChildren || this._children;
+            var tmpMat = [];
+
+            for (var i = 0; i < children.length; i++) {
+                var child = children[i];
+                if (child.ignore || child.invisible) {
+                    continue;
+                }
+
+                var childRect = child.getBoundingRect();
+                var transform = child.getLocalTransform(tmpMat);
+                // TODO
+                // The boundingRect cacluated by transforming original
+                // rect may be bigger than the actual bundingRect when rotation
+                // is used. (Consider a circle rotated aginst its center, where
+                // the actual boundingRect should be the same as that not be
+                // rotated.) But we can not find better approach to calculate
+                // actual boundingRect yet, considering performance.
+                if (transform) {
+                    tmpRect.copy(childRect);
+                    tmpRect.applyTransform(transform);
+                    rect = rect || tmpRect.clone();
+                    rect.union(tmpRect);
+                }
+                else {
+                    rect = rect || childRect.clone();
+                    rect.union(childRect);
+                }
+            }
+            return rect || tmpRect;
+        }
+    };
+
+    zrUtil.inherits(Group, Element);
+
+    return Group;
 });
 /**
  * @author Yi Shen(https://github.com/pissang)
@@ -9629,6 +9629,912 @@ define('frender/dom/HandlerProxy',['require','../core/event','../core/util','../
     return HandlerDomProxy;
 });
 /**
+ * @module frender/mixin/Animatable
+ */
+define('frender/mixin/Animatable',['require','../animation/Animator','../core/util','../core/log'],function(require) {
+
+    
+
+    var Animator = require('../animation/Animator');
+    var util = require('../core/util');
+    var isString = util.isString;
+    var isFunction = util.isFunction;
+    var isObject = util.isObject;
+    var log = require('../core/log');
+
+    /**
+     * @alias modue:frender/mixin/Animatable
+     * @constructor
+     */
+    var Animatable = function () {
+
+        /**
+         * @type {Array.<module:frender/animation/Animator>}
+         * @readOnly
+         */
+        this.animators = [];
+    };
+
+    Animatable.prototype = {
+
+        constructor: Animatable,
+
+        /**
+         * 动画
+         *
+         * @param {string} path 需要添加动画的属性获取路径，可以通过a.b.c来获取深层的属性
+         * @param {boolean} [loop] 动画是否循环
+         * @return {module:frender/animation/Animator}
+         * @example:
+         *     el.animate('style', false)
+         *         .when(1000, {x: 10} )
+         *         .done(function(){ // Animation done })
+         *         .start()
+         */
+        animate: function (path, loop) {
+            var target;
+            var animatingShape = false;
+            var el = this;
+            var zr = this.__zr;
+            if (path) {
+                var pathSplitted = path.split('.');
+                var prop = el;
+                // If animating shape
+                animatingShape = pathSplitted[0] === 'shape';
+                for (var i = 0, l = pathSplitted.length; i < l; i++) {
+                    if (!prop) {
+                        continue;
+                    }
+                    prop = prop[pathSplitted[i]];
+                }
+                if (prop) {
+                    target = prop;
+                }
+            }
+            else {
+                target = el;
+            }
+
+            if (!target) {
+                log(
+                    'Property "'
+                    + path
+                    + '" is not existed in element '
+                    + el.id
+                );
+                return;
+            }
+
+            var animators = el.animators;
+
+            var animator = new Animator(target, loop);
+
+            animator.during(function (target) {
+                el.dirty(animatingShape);
+            })
+            .done(function () {
+                // FIXME Animator will not be removed if use `Animator#stop` to stop animation
+                animators.splice(util.indexOf(animators, animator), 1);
+            });
+
+            animators.push(animator);
+
+            // If animate after added to the frender
+            if (zr) {
+                zr.animation.addAnimator(animator);
+            }
+
+            return animator;
+        },
+
+        /**
+         * 停止动画
+         * @param {boolean} forwardToLast If move to last frame before stop
+         */
+        stopAnimation: function (forwardToLast) {
+            var animators = this.animators;
+            var len = animators.length;
+            for (var i = 0; i < len; i++) {
+                animators[i].stop(forwardToLast);
+            }
+            animators.length = 0;
+
+            return this;
+        },
+
+        /**
+         * @param {Object} target
+         * @param {number} [time=500] Time in ms
+         * @param {string} [easing='linear']
+         * @param {number} [delay=0]
+         * @param {Function} [callback]
+         *
+         * @example
+         *  // Animate position
+         *  el.animateTo({
+         *      position: [10, 10]
+         *  }, function () { // done })
+         *
+         *  // Animate shape, style and position in 100ms, delayed 100ms, with cubicOut easing
+         *  el.animateTo({
+         *      shape: {
+         *          width: 500
+         *      },
+         *      style: {
+         *          fill: 'red'
+         *      }
+         *      position: [10, 10]
+         *  }, 100, 100, 'cubicOut', function () { // done })
+         */
+         // TODO Return animation key
+        animateTo: function (target, time, delay, easing, callback) {
+            // animateTo(target, time, easing, callback);
+            if (isString(delay)) {
+                callback = easing;
+                easing = delay;
+                delay = 0;
+            }
+            // animateTo(target, time, delay, callback);
+            else if (isFunction(easing)) {
+                callback = easing;
+                easing = 'linear';
+                delay = 0;
+            }
+            // animateTo(target, time, callback);
+            else if (isFunction(delay)) {
+                callback = delay;
+                delay = 0;
+            }
+            // animateTo(target, callback)
+            else if (isFunction(time)) {
+                callback = time;
+                time = 500;
+            }
+            // animateTo(target)
+            else if (!time) {
+                time = 500;
+            }
+            // Stop all previous animations
+            this.stopAnimation();
+            this._animateToShallow('', this, target, time, delay, easing, callback);
+
+            // Animators may be removed immediately after start
+            // if there is nothing to animate
+            var animators = this.animators.slice();
+            var count = animators.length;
+            function done() {
+                count--;
+                if (!count) {
+                    callback && callback();
+                }
+            }
+
+            // No animators. This should be checked before animators[i].start(),
+            // because 'done' may be executed immediately if no need to animate.
+            if (!count) {
+                callback && callback();
+            }
+            // Start after all animators created
+            // Incase any animator is done immediately when all animation properties are not changed
+            for (var i = 0; i < animators.length; i++) {
+                animators[i]
+                    .done(done)
+                    .start(easing);
+            }
+        },
+
+        /**
+         * @private
+         * @param {string} path=''
+         * @param {Object} source=this
+         * @param {Object} target
+         * @param {number} [time=500]
+         * @param {number} [delay=0]
+         *
+         * @example
+         *  // Animate position
+         *  el._animateToShallow({
+         *      position: [10, 10]
+         *  })
+         *
+         *  // Animate shape, style and position in 100ms, delayed 100ms
+         *  el._animateToShallow({
+         *      shape: {
+         *          width: 500
+         *      },
+         *      style: {
+         *          fill: 'red'
+         *      }
+         *      position: [10, 10]
+         *  }, 100, 100)
+         */
+        _animateToShallow: function (path, source, target, time, delay) {
+            var objShallow = {};
+            var propertyCount = 0;
+            for (var name in target) {
+                if (!target.hasOwnProperty(name)) {
+                    continue;
+                }
+
+                if (source[name] != null) {
+                    if (isObject(target[name]) && !util.isArrayLike(target[name])) {
+                        this._animateToShallow(
+                            path ? path + '.' + name : name,
+                            source[name],
+                            target[name],
+                            time,
+                            delay
+                        );
+                    }
+                    else {
+                        objShallow[name] = target[name];
+                        propertyCount++;
+                    }
+                }
+                else if (target[name] != null) {
+                    // Attr directly if not has property
+                    // FIXME, if some property not needed for element ?
+                    if (!path) {
+                        this.attr(name, target[name]);
+                    }
+                    else {  // Shape or style
+                        var props = {};
+                        props[path] = {};
+                        props[path][name] = target[name];
+                        this.attr(props);
+                    }
+                }
+            }
+
+            if (propertyCount > 0) {
+                this.animate(path, false)
+                    .when(time == null ? 500 : time, objShallow)
+                    .delay(delay || 0);
+            }
+
+            return this;
+        }
+    };
+
+    return Animatable;
+});
+// TODO Draggable for group
+// FIXME Draggable on element which has parent rotation or scale
+define('frender/mixin/Draggable',['require'],function (require) {
+    function Draggable() {
+
+        this.on('mousedown', this._dragStart, this);
+        this.on('mousemove', this._drag, this);
+        this.on('mouseup', this._dragEnd, this);
+        this.on('globalout', this._dragEnd, this);
+        // this._dropTarget = null;
+        // this._draggingTarget = null;
+
+        // this._x = 0;
+        // this._y = 0;
+    }
+
+    Draggable.prototype = {
+
+        constructor: Draggable,
+
+        _dragStart: function (e) {
+            var draggingTarget = e.target;
+            if (draggingTarget && draggingTarget.draggable) {
+                this._draggingTarget = draggingTarget;
+                draggingTarget.dragging = true;
+                this._x = e.offsetX;
+                this._y = e.offsetY;
+
+                this.dispatchToElement(draggingTarget, 'dragstart', e.event);
+            }
+        },
+
+        _drag: function (e) {
+            var draggingTarget = this._draggingTarget;
+            if (draggingTarget) {
+
+                var x = e.offsetX;
+                var y = e.offsetY;
+
+                var dx = x - this._x;
+                var dy = y - this._y;
+                this._x = x;
+                this._y = y;
+
+                draggingTarget.drift(dx, dy, e);
+                this.dispatchToElement(draggingTarget, 'drag', e.event);
+
+                var dropTarget = this.findHover(x, y, draggingTarget);
+                var lastDropTarget = this._dropTarget;
+                this._dropTarget = dropTarget;
+
+                if (draggingTarget !== dropTarget) {
+                    if (lastDropTarget && dropTarget !== lastDropTarget) {
+                        this.dispatchToElement(lastDropTarget, 'dragleave', e.event);
+                    }
+                    if (dropTarget && dropTarget !== lastDropTarget) {
+                        this.dispatchToElement(dropTarget, 'dragenter', e.event);
+                    }
+                }
+            }
+        },
+
+        _dragEnd: function (e) {
+            var draggingTarget = this._draggingTarget;
+
+            if (draggingTarget) {
+                draggingTarget.dragging = false;
+            }
+
+            this.dispatchToElement(draggingTarget, 'dragend', e.event);
+
+            if (this._dropTarget) {
+                this.dispatchToElement(this._dropTarget, 'drop', e.event);
+            }
+
+            this._draggingTarget = null;
+            this._dropTarget = null;
+        }
+
+    };
+
+    return Draggable;
+});
+/**
+ * 事件扩展
+ * @module frender/mixin/Eventful
+ * @author Kener (@Kener-林峰, kener.linfeng@gmail.com)
+ *         pissang (https://www.github.com/pissang)
+ */
+define('frender/mixin/Eventful',['require'],function (require) {
+
+    var arrySlice = Array.prototype.slice;
+
+    /**
+     * 事件分发器
+     * @alias module:frender/mixin/Eventful
+     * @constructor
+     */
+    var Eventful = function () {
+        this._$handlers = {};
+    };
+
+    Eventful.prototype = {
+
+        constructor: Eventful,
+
+        /**
+         * 单次触发绑定，trigger后销毁
+         *
+         * @param {string} event 事件名
+         * @param {Function} handler 响应函数
+         * @param {Object} context
+         */
+        one: function (event, handler, context) {
+            var _h = this._$handlers;
+
+            if (!handler || !event) {
+                return this;
+            }
+
+            if (!_h[event]) {
+                _h[event] = [];
+            }
+
+            for (var i = 0; i < _h[event].length; i++) {
+                if (_h[event][i].h === handler) {
+                    return this;
+                }
+            }
+
+            _h[event].push({
+                h: handler,
+                one: true,
+                ctx: context || this
+            });
+
+            return this;
+        },
+
+        /**
+         * 绑定事件
+         * @param {string} event 事件名
+         * @param {Function} handler 事件处理函数
+         * @param {Object} [context]
+         */
+        on: function (event, handler, context) {
+            var _h = this._$handlers;
+
+            if (!handler || !event) {
+                return this;
+            }
+
+            if (!_h[event]) {
+                _h[event] = [];
+            }
+
+            for (var i = 0; i < _h[event].length; i++) {
+                if (_h[event][i].h === handler) {
+                    return this;
+                }
+            }
+
+            _h[event].push({
+                h: handler,
+                one: false,
+                ctx: context || this
+            });
+
+            return this;
+        },
+
+        /**
+         * 是否绑定了事件
+         * @param  {string}  event
+         * @return {boolean}
+         */
+        isSilent: function (event) {
+            var _h = this._$handlers;
+            return _h[event] && _h[event].length;
+        },
+
+        /**
+         * 解绑事件
+         * @param {string} event 事件名
+         * @param {Function} [handler] 事件处理函数
+         */
+        off: function (event, handler) {
+            var _h = this._$handlers;
+
+            if (!event) {
+                this._$handlers = {};
+                return this;
+            }
+
+            if (handler) {
+                if (_h[event]) {
+                    var newList = [];
+                    for (var i = 0, l = _h[event].length; i < l; i++) {
+                        if (_h[event][i]['h'] != handler) {
+                            newList.push(_h[event][i]);
+                        }
+                    }
+                    _h[event] = newList;
+                }
+
+                if (_h[event] && _h[event].length === 0) {
+                    delete _h[event];
+                }
+            }
+            else {
+                delete _h[event];
+            }
+
+            return this;
+        },
+
+        /**
+         * 事件分发
+         *
+         * @param {string} type 事件类型
+         */
+        trigger: function (type) {
+            if (this._$handlers[type]) {
+                var args = arguments;
+                var argLen = args.length;
+
+                if (argLen > 3) {
+                    args = arrySlice.call(args, 1);
+                }
+
+                var _h = this._$handlers[type];
+                var len = _h.length;
+                for (var i = 0; i < len;) {
+                    // Optimize advise from backbone
+                    switch (argLen) {
+                        case 1:
+                            _h[i]['h'].call(_h[i]['ctx']);
+                            break;
+                        case 2:
+                            _h[i]['h'].call(_h[i]['ctx'], args[1]);
+                            break;
+                        case 3:
+                            _h[i]['h'].call(_h[i]['ctx'], args[1], args[2]);
+                            break;
+                        default:
+                            // have more than 2 given arguments
+                            _h[i]['h'].apply(_h[i]['ctx'], args);
+                            break;
+                    }
+
+                    if (_h[i]['one']) {
+                        _h.splice(i, 1);
+                        len--;
+                    }
+                    else {
+                        i++;
+                    }
+                }
+            }
+
+            return this;
+        },
+
+        /**
+         * 带有context的事件分发, 最后一个参数是事件回调的context
+         * @param {string} type 事件类型
+         */
+        triggerWithContext: function (type) {
+            if (this._$handlers[type]) {
+                var args = arguments;
+                var argLen = args.length;
+
+                if (argLen > 4) {
+                    args = arrySlice.call(args, 1, args.length - 1);
+                }
+                var ctx = args[args.length - 1];
+
+                var _h = this._$handlers[type];
+                var len = _h.length;
+                for (var i = 0; i < len;) {
+                    // Optimize advise from backbone
+                    switch (argLen) {
+                        case 1:
+                            _h[i]['h'].call(ctx);
+                            break;
+                        case 2:
+                            _h[i]['h'].call(ctx, args[1]);
+                            break;
+                        case 3:
+                            _h[i]['h'].call(ctx, args[1], args[2]);
+                            break;
+                        default:
+                            // have more than 2 given arguments
+                            _h[i]['h'].apply(ctx, args);
+                            break;
+                    }
+
+                    if (_h[i]['one']) {
+                        _h.splice(i, 1);
+                        len--;
+                    }
+                    else {
+                        i++;
+                    }
+                }
+            }
+
+            return this;
+        }
+    };
+
+    // 对象可以通过 onxxxx 绑定事件
+    /**
+     * @event module:frender/mixin/Eventful#onclick
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#onmouseover
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#onmouseout
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#onmousemove
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#onmousewheel
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#onmousedown
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#onmouseup
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#ondrag
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#ondragstart
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#ondragend
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#ondragenter
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#ondragleave
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#ondragover
+     * @type {Function}
+     * @default null
+     */
+    /**
+     * @event module:frender/mixin/Eventful#ondrop
+     * @type {Function}
+     * @default null
+     */
+
+    return Eventful;
+});
+/**
+ * 提供变换扩展
+ * @module frender/mixin/Transformable
+ * @author pissang (https://www.github.com/pissang)
+ */
+define('frender/mixin/Transformable',['require','../core/matrix','../core/vector'],function (require) {
+
+    
+
+    var matrix = require('../core/matrix');
+    var vector = require('../core/vector');
+    var mIdentity = matrix.identity;
+
+    var EPSILON = 5e-5;
+
+    function isNotAroundZero(val) {
+        return val > EPSILON || val < -EPSILON;
+    }
+
+    /**
+     * @alias module:frender/mixin/Transformable
+     * @constructor
+     */
+    var Transformable = function (opts) {
+        opts = opts || {};
+        // If there are no given position, rotation, scale
+        if (!opts.position) {
+            /**
+             * 平移
+             * @type {Array.<number>}
+             * @default [0, 0]
+             */
+            this.position = [0, 0];
+        }
+        if (opts.rotation == null) {
+            /**
+             * 旋转
+             * @type {Array.<number>}
+             * @default 0
+             */
+            this.rotation = 0;
+        }
+        if (!opts.scale) {
+            /**
+             * 缩放
+             * @type {Array.<number>}
+             * @default [1, 1]
+             */
+            this.scale = [1, 1];
+        }
+        /**
+         * 旋转和缩放的原点
+         * @type {Array.<number>}
+         * @default null
+         */
+        this.origin = this.origin || null;
+    };
+
+    var transformableProto = Transformable.prototype;
+    transformableProto.transform = null;
+
+    /**
+     * 判断是否需要有坐标变换
+     * 如果有坐标变换, 则从position, rotation, scale以及父节点的transform计算出自身的transform矩阵
+     */
+    transformableProto.needLocalTransform = function () {
+        return isNotAroundZero(this.rotation)
+            || isNotAroundZero(this.position[0])
+            || isNotAroundZero(this.position[1])
+            || isNotAroundZero(this.scale[0] - 1)
+            || isNotAroundZero(this.scale[1] - 1);
+    };
+
+    transformableProto.updateTransform = function () {
+        var parent = this.parent;
+        var parentHasTransform = parent && parent.transform;
+        var needLocalTransform = this.needLocalTransform();
+
+        var m = this.transform;
+        if (!(needLocalTransform || parentHasTransform)) {
+            m && mIdentity(m);
+            return;
+        }
+
+        m = m || matrix.create();
+
+        if (needLocalTransform) {
+            this.getLocalTransform(m);
+        }
+        else {
+            mIdentity(m);
+        }
+
+        // 应用父节点变换
+        if (parentHasTransform) {
+            if (needLocalTransform) {
+                matrix.mul(m, parent.transform, m);
+            }
+            else {
+                matrix.copy(m, parent.transform);
+            }
+        }
+        // 保存这个变换矩阵
+        this.transform = m;
+
+        this.invTransform = this.invTransform || matrix.create();
+        matrix.invert(this.invTransform, m);
+    };
+
+    transformableProto.getLocalTransform = function (m) {
+        m = m || [];
+        mIdentity(m);
+
+        var origin = this.origin;
+
+        var scale = this.scale;
+        var rotation = this.rotation;
+        var position = this.position;
+        if (origin) {
+            // Translate to origin
+            m[4] -= origin[0];
+            m[5] -= origin[1];
+        }
+        matrix.scale(m, m, scale);
+        if (rotation) {
+            matrix.rotate(m, m, rotation);
+        }
+        if (origin) {
+            // Translate back from origin
+            m[4] += origin[0];
+            m[5] += origin[1];
+        }
+
+        m[4] += position[0];
+        m[5] += position[1];
+
+        return m;
+    };
+    /**
+     * 将自己的transform应用到context上
+     * @param {Context2D} ctx
+     */
+    transformableProto.setTransform = function (ctx) {
+        var m = this.transform;
+        var dpr = ctx.dpr || 1;
+        if (m) {
+            ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * m[4], dpr * m[5]);
+        }
+        else {
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+    };
+
+    transformableProto.restoreTransform = function (ctx) {
+        var m = this.transform;
+        var dpr = ctx.dpr || 1;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    var tmpTransform = [];
+
+    /**
+     * 分解`transform`矩阵到`position`, `rotation`, `scale`
+     */
+    transformableProto.decomposeTransform = function () {
+        if (!this.transform) {
+            return;
+        }
+        var parent = this.parent;
+        var m = this.transform;
+        if (parent && parent.transform) {
+            // Get local transform and decompose them to position, scale, rotation
+            matrix.mul(tmpTransform, parent.invTransform, m);
+            m = tmpTransform;
+        }
+        var sx = m[0] * m[0] + m[1] * m[1];
+        var sy = m[2] * m[2] + m[3] * m[3];
+        var position = this.position;
+        var scale = this.scale;
+        if (isNotAroundZero(sx - 1)) {
+            sx = Math.sqrt(sx);
+        }
+        if (isNotAroundZero(sy - 1)) {
+            sy = Math.sqrt(sy);
+        }
+        if (m[0] < 0) {
+            sx = -sx;
+        }
+        if (m[3] < 0) {
+            sy = -sy;
+        }
+        position[0] = m[4];
+        position[1] = m[5];
+        scale[0] = sx;
+        scale[1] = sy;
+        this.rotation = Math.atan2(-m[1] / sy, m[0] / sx);
+    };
+
+    /**
+     * Get global scale
+     * @return {Array.<number>}
+     */
+    transformableProto.getGlobalScale = function () {
+        var m = this.transform;
+        if (!m) {
+            return [1, 1];
+        }
+        var sx = Math.sqrt(m[0] * m[0] + m[1] * m[1]);
+        var sy = Math.sqrt(m[2] * m[2] + m[3] * m[3]);
+        if (m[0] < 0) {
+            sx = -sx;
+        }
+        if (m[3] < 0) {
+            sy = -sy;
+        }
+        return [sx, sy];
+    };
+    /**
+     * 变换坐标位置到 shape 的局部坐标空间
+     * @method
+     * @param {number} x
+     * @param {number} y
+     * @return {Array.<number>}
+     */
+    transformableProto.transformCoordToLocal = function (x, y) {
+        var v2 = [x, y];
+        var invTransform = this.invTransform;
+        if (invTransform) {
+            vector.applyTransform(v2, v2, invTransform);
+        }
+        return v2;
+    };
+
+    /**
+     * 变换局部坐标位置到全局坐标空间
+     * @method
+     * @param {number} x
+     * @param {number} y
+     * @return {Array.<number>}
+     */
+    transformableProto.transformCoordToGlobal = function (x, y) {
+        var v2 = [x, y];
+        var transform = this.transform;
+        if (transform) {
+            vector.applyTransform(v2, v2, transform);
+        }
+        return v2;
+    };
+
+    return Transformable;
+});
+/**
  * 可绘制的图形基类
  * Base class of all displayable graphic objects
  * @module frender/graphic/Displayable
@@ -10912,912 +11818,6 @@ define('frender/graphic/Text',['require','./Displayable','../core/util','../cont
     zrUtil.inherits(Text, Displayable);
 
     return Text;
-});
-/**
- * @module frender/mixin/Animatable
- */
-define('frender/mixin/Animatable',['require','../animation/Animator','../core/util','../core/log'],function(require) {
-
-    
-
-    var Animator = require('../animation/Animator');
-    var util = require('../core/util');
-    var isString = util.isString;
-    var isFunction = util.isFunction;
-    var isObject = util.isObject;
-    var log = require('../core/log');
-
-    /**
-     * @alias modue:frender/mixin/Animatable
-     * @constructor
-     */
-    var Animatable = function () {
-
-        /**
-         * @type {Array.<module:frender/animation/Animator>}
-         * @readOnly
-         */
-        this.animators = [];
-    };
-
-    Animatable.prototype = {
-
-        constructor: Animatable,
-
-        /**
-         * 动画
-         *
-         * @param {string} path 需要添加动画的属性获取路径，可以通过a.b.c来获取深层的属性
-         * @param {boolean} [loop] 动画是否循环
-         * @return {module:frender/animation/Animator}
-         * @example:
-         *     el.animate('style', false)
-         *         .when(1000, {x: 10} )
-         *         .done(function(){ // Animation done })
-         *         .start()
-         */
-        animate: function (path, loop) {
-            var target;
-            var animatingShape = false;
-            var el = this;
-            var zr = this.__zr;
-            if (path) {
-                var pathSplitted = path.split('.');
-                var prop = el;
-                // If animating shape
-                animatingShape = pathSplitted[0] === 'shape';
-                for (var i = 0, l = pathSplitted.length; i < l; i++) {
-                    if (!prop) {
-                        continue;
-                    }
-                    prop = prop[pathSplitted[i]];
-                }
-                if (prop) {
-                    target = prop;
-                }
-            }
-            else {
-                target = el;
-            }
-
-            if (!target) {
-                log(
-                    'Property "'
-                    + path
-                    + '" is not existed in element '
-                    + el.id
-                );
-                return;
-            }
-
-            var animators = el.animators;
-
-            var animator = new Animator(target, loop);
-
-            animator.during(function (target) {
-                el.dirty(animatingShape);
-            })
-            .done(function () {
-                // FIXME Animator will not be removed if use `Animator#stop` to stop animation
-                animators.splice(util.indexOf(animators, animator), 1);
-            });
-
-            animators.push(animator);
-
-            // If animate after added to the frender
-            if (zr) {
-                zr.animation.addAnimator(animator);
-            }
-
-            return animator;
-        },
-
-        /**
-         * 停止动画
-         * @param {boolean} forwardToLast If move to last frame before stop
-         */
-        stopAnimation: function (forwardToLast) {
-            var animators = this.animators;
-            var len = animators.length;
-            for (var i = 0; i < len; i++) {
-                animators[i].stop(forwardToLast);
-            }
-            animators.length = 0;
-
-            return this;
-        },
-
-        /**
-         * @param {Object} target
-         * @param {number} [time=500] Time in ms
-         * @param {string} [easing='linear']
-         * @param {number} [delay=0]
-         * @param {Function} [callback]
-         *
-         * @example
-         *  // Animate position
-         *  el.animateTo({
-         *      position: [10, 10]
-         *  }, function () { // done })
-         *
-         *  // Animate shape, style and position in 100ms, delayed 100ms, with cubicOut easing
-         *  el.animateTo({
-         *      shape: {
-         *          width: 500
-         *      },
-         *      style: {
-         *          fill: 'red'
-         *      }
-         *      position: [10, 10]
-         *  }, 100, 100, 'cubicOut', function () { // done })
-         */
-         // TODO Return animation key
-        animateTo: function (target, time, delay, easing, callback) {
-            // animateTo(target, time, easing, callback);
-            if (isString(delay)) {
-                callback = easing;
-                easing = delay;
-                delay = 0;
-            }
-            // animateTo(target, time, delay, callback);
-            else if (isFunction(easing)) {
-                callback = easing;
-                easing = 'linear';
-                delay = 0;
-            }
-            // animateTo(target, time, callback);
-            else if (isFunction(delay)) {
-                callback = delay;
-                delay = 0;
-            }
-            // animateTo(target, callback)
-            else if (isFunction(time)) {
-                callback = time;
-                time = 500;
-            }
-            // animateTo(target)
-            else if (!time) {
-                time = 500;
-            }
-            // Stop all previous animations
-            this.stopAnimation();
-            this._animateToShallow('', this, target, time, delay, easing, callback);
-
-            // Animators may be removed immediately after start
-            // if there is nothing to animate
-            var animators = this.animators.slice();
-            var count = animators.length;
-            function done() {
-                count--;
-                if (!count) {
-                    callback && callback();
-                }
-            }
-
-            // No animators. This should be checked before animators[i].start(),
-            // because 'done' may be executed immediately if no need to animate.
-            if (!count) {
-                callback && callback();
-            }
-            // Start after all animators created
-            // Incase any animator is done immediately when all animation properties are not changed
-            for (var i = 0; i < animators.length; i++) {
-                animators[i]
-                    .done(done)
-                    .start(easing);
-            }
-        },
-
-        /**
-         * @private
-         * @param {string} path=''
-         * @param {Object} source=this
-         * @param {Object} target
-         * @param {number} [time=500]
-         * @param {number} [delay=0]
-         *
-         * @example
-         *  // Animate position
-         *  el._animateToShallow({
-         *      position: [10, 10]
-         *  })
-         *
-         *  // Animate shape, style and position in 100ms, delayed 100ms
-         *  el._animateToShallow({
-         *      shape: {
-         *          width: 500
-         *      },
-         *      style: {
-         *          fill: 'red'
-         *      }
-         *      position: [10, 10]
-         *  }, 100, 100)
-         */
-        _animateToShallow: function (path, source, target, time, delay) {
-            var objShallow = {};
-            var propertyCount = 0;
-            for (var name in target) {
-                if (!target.hasOwnProperty(name)) {
-                    continue;
-                }
-
-                if (source[name] != null) {
-                    if (isObject(target[name]) && !util.isArrayLike(target[name])) {
-                        this._animateToShallow(
-                            path ? path + '.' + name : name,
-                            source[name],
-                            target[name],
-                            time,
-                            delay
-                        );
-                    }
-                    else {
-                        objShallow[name] = target[name];
-                        propertyCount++;
-                    }
-                }
-                else if (target[name] != null) {
-                    // Attr directly if not has property
-                    // FIXME, if some property not needed for element ?
-                    if (!path) {
-                        this.attr(name, target[name]);
-                    }
-                    else {  // Shape or style
-                        var props = {};
-                        props[path] = {};
-                        props[path][name] = target[name];
-                        this.attr(props);
-                    }
-                }
-            }
-
-            if (propertyCount > 0) {
-                this.animate(path, false)
-                    .when(time == null ? 500 : time, objShallow)
-                    .delay(delay || 0);
-            }
-
-            return this;
-        }
-    };
-
-    return Animatable;
-});
-// TODO Draggable for group
-// FIXME Draggable on element which has parent rotation or scale
-define('frender/mixin/Draggable',['require'],function (require) {
-    function Draggable() {
-
-        this.on('mousedown', this._dragStart, this);
-        this.on('mousemove', this._drag, this);
-        this.on('mouseup', this._dragEnd, this);
-        this.on('globalout', this._dragEnd, this);
-        // this._dropTarget = null;
-        // this._draggingTarget = null;
-
-        // this._x = 0;
-        // this._y = 0;
-    }
-
-    Draggable.prototype = {
-
-        constructor: Draggable,
-
-        _dragStart: function (e) {
-            var draggingTarget = e.target;
-            if (draggingTarget && draggingTarget.draggable) {
-                this._draggingTarget = draggingTarget;
-                draggingTarget.dragging = true;
-                this._x = e.offsetX;
-                this._y = e.offsetY;
-
-                this.dispatchToElement(draggingTarget, 'dragstart', e.event);
-            }
-        },
-
-        _drag: function (e) {
-            var draggingTarget = this._draggingTarget;
-            if (draggingTarget) {
-
-                var x = e.offsetX;
-                var y = e.offsetY;
-
-                var dx = x - this._x;
-                var dy = y - this._y;
-                this._x = x;
-                this._y = y;
-
-                draggingTarget.drift(dx, dy, e);
-                this.dispatchToElement(draggingTarget, 'drag', e.event);
-
-                var dropTarget = this.findHover(x, y, draggingTarget);
-                var lastDropTarget = this._dropTarget;
-                this._dropTarget = dropTarget;
-
-                if (draggingTarget !== dropTarget) {
-                    if (lastDropTarget && dropTarget !== lastDropTarget) {
-                        this.dispatchToElement(lastDropTarget, 'dragleave', e.event);
-                    }
-                    if (dropTarget && dropTarget !== lastDropTarget) {
-                        this.dispatchToElement(dropTarget, 'dragenter', e.event);
-                    }
-                }
-            }
-        },
-
-        _dragEnd: function (e) {
-            var draggingTarget = this._draggingTarget;
-
-            if (draggingTarget) {
-                draggingTarget.dragging = false;
-            }
-
-            this.dispatchToElement(draggingTarget, 'dragend', e.event);
-
-            if (this._dropTarget) {
-                this.dispatchToElement(this._dropTarget, 'drop', e.event);
-            }
-
-            this._draggingTarget = null;
-            this._dropTarget = null;
-        }
-
-    };
-
-    return Draggable;
-});
-/**
- * 事件扩展
- * @module frender/mixin/Eventful
- * @author Kener (@Kener-林峰, kener.linfeng@gmail.com)
- *         pissang (https://www.github.com/pissang)
- */
-define('frender/mixin/Eventful',['require'],function (require) {
-
-    var arrySlice = Array.prototype.slice;
-
-    /**
-     * 事件分发器
-     * @alias module:frender/mixin/Eventful
-     * @constructor
-     */
-    var Eventful = function () {
-        this._$handlers = {};
-    };
-
-    Eventful.prototype = {
-
-        constructor: Eventful,
-
-        /**
-         * 单次触发绑定，trigger后销毁
-         *
-         * @param {string} event 事件名
-         * @param {Function} handler 响应函数
-         * @param {Object} context
-         */
-        one: function (event, handler, context) {
-            var _h = this._$handlers;
-
-            if (!handler || !event) {
-                return this;
-            }
-
-            if (!_h[event]) {
-                _h[event] = [];
-            }
-
-            for (var i = 0; i < _h[event].length; i++) {
-                if (_h[event][i].h === handler) {
-                    return this;
-                }
-            }
-
-            _h[event].push({
-                h: handler,
-                one: true,
-                ctx: context || this
-            });
-
-            return this;
-        },
-
-        /**
-         * 绑定事件
-         * @param {string} event 事件名
-         * @param {Function} handler 事件处理函数
-         * @param {Object} [context]
-         */
-        on: function (event, handler, context) {
-            var _h = this._$handlers;
-
-            if (!handler || !event) {
-                return this;
-            }
-
-            if (!_h[event]) {
-                _h[event] = [];
-            }
-
-            for (var i = 0; i < _h[event].length; i++) {
-                if (_h[event][i].h === handler) {
-                    return this;
-                }
-            }
-
-            _h[event].push({
-                h: handler,
-                one: false,
-                ctx: context || this
-            });
-
-            return this;
-        },
-
-        /**
-         * 是否绑定了事件
-         * @param  {string}  event
-         * @return {boolean}
-         */
-        isSilent: function (event) {
-            var _h = this._$handlers;
-            return _h[event] && _h[event].length;
-        },
-
-        /**
-         * 解绑事件
-         * @param {string} event 事件名
-         * @param {Function} [handler] 事件处理函数
-         */
-        off: function (event, handler) {
-            var _h = this._$handlers;
-
-            if (!event) {
-                this._$handlers = {};
-                return this;
-            }
-
-            if (handler) {
-                if (_h[event]) {
-                    var newList = [];
-                    for (var i = 0, l = _h[event].length; i < l; i++) {
-                        if (_h[event][i]['h'] != handler) {
-                            newList.push(_h[event][i]);
-                        }
-                    }
-                    _h[event] = newList;
-                }
-
-                if (_h[event] && _h[event].length === 0) {
-                    delete _h[event];
-                }
-            }
-            else {
-                delete _h[event];
-            }
-
-            return this;
-        },
-
-        /**
-         * 事件分发
-         *
-         * @param {string} type 事件类型
-         */
-        trigger: function (type) {
-            if (this._$handlers[type]) {
-                var args = arguments;
-                var argLen = args.length;
-
-                if (argLen > 3) {
-                    args = arrySlice.call(args, 1);
-                }
-
-                var _h = this._$handlers[type];
-                var len = _h.length;
-                for (var i = 0; i < len;) {
-                    // Optimize advise from backbone
-                    switch (argLen) {
-                        case 1:
-                            _h[i]['h'].call(_h[i]['ctx']);
-                            break;
-                        case 2:
-                            _h[i]['h'].call(_h[i]['ctx'], args[1]);
-                            break;
-                        case 3:
-                            _h[i]['h'].call(_h[i]['ctx'], args[1], args[2]);
-                            break;
-                        default:
-                            // have more than 2 given arguments
-                            _h[i]['h'].apply(_h[i]['ctx'], args);
-                            break;
-                    }
-
-                    if (_h[i]['one']) {
-                        _h.splice(i, 1);
-                        len--;
-                    }
-                    else {
-                        i++;
-                    }
-                }
-            }
-
-            return this;
-        },
-
-        /**
-         * 带有context的事件分发, 最后一个参数是事件回调的context
-         * @param {string} type 事件类型
-         */
-        triggerWithContext: function (type) {
-            if (this._$handlers[type]) {
-                var args = arguments;
-                var argLen = args.length;
-
-                if (argLen > 4) {
-                    args = arrySlice.call(args, 1, args.length - 1);
-                }
-                var ctx = args[args.length - 1];
-
-                var _h = this._$handlers[type];
-                var len = _h.length;
-                for (var i = 0; i < len;) {
-                    // Optimize advise from backbone
-                    switch (argLen) {
-                        case 1:
-                            _h[i]['h'].call(ctx);
-                            break;
-                        case 2:
-                            _h[i]['h'].call(ctx, args[1]);
-                            break;
-                        case 3:
-                            _h[i]['h'].call(ctx, args[1], args[2]);
-                            break;
-                        default:
-                            // have more than 2 given arguments
-                            _h[i]['h'].apply(ctx, args);
-                            break;
-                    }
-
-                    if (_h[i]['one']) {
-                        _h.splice(i, 1);
-                        len--;
-                    }
-                    else {
-                        i++;
-                    }
-                }
-            }
-
-            return this;
-        }
-    };
-
-    // 对象可以通过 onxxxx 绑定事件
-    /**
-     * @event module:frender/mixin/Eventful#onclick
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#onmouseover
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#onmouseout
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#onmousemove
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#onmousewheel
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#onmousedown
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#onmouseup
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#ondrag
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#ondragstart
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#ondragend
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#ondragenter
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#ondragleave
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#ondragover
-     * @type {Function}
-     * @default null
-     */
-    /**
-     * @event module:frender/mixin/Eventful#ondrop
-     * @type {Function}
-     * @default null
-     */
-
-    return Eventful;
-});
-/**
- * 提供变换扩展
- * @module frender/mixin/Transformable
- * @author pissang (https://www.github.com/pissang)
- */
-define('frender/mixin/Transformable',['require','../core/matrix','../core/vector'],function (require) {
-
-    
-
-    var matrix = require('../core/matrix');
-    var vector = require('../core/vector');
-    var mIdentity = matrix.identity;
-
-    var EPSILON = 5e-5;
-
-    function isNotAroundZero(val) {
-        return val > EPSILON || val < -EPSILON;
-    }
-
-    /**
-     * @alias module:frender/mixin/Transformable
-     * @constructor
-     */
-    var Transformable = function (opts) {
-        opts = opts || {};
-        // If there are no given position, rotation, scale
-        if (!opts.position) {
-            /**
-             * 平移
-             * @type {Array.<number>}
-             * @default [0, 0]
-             */
-            this.position = [0, 0];
-        }
-        if (opts.rotation == null) {
-            /**
-             * 旋转
-             * @type {Array.<number>}
-             * @default 0
-             */
-            this.rotation = 0;
-        }
-        if (!opts.scale) {
-            /**
-             * 缩放
-             * @type {Array.<number>}
-             * @default [1, 1]
-             */
-            this.scale = [1, 1];
-        }
-        /**
-         * 旋转和缩放的原点
-         * @type {Array.<number>}
-         * @default null
-         */
-        this.origin = this.origin || null;
-    };
-
-    var transformableProto = Transformable.prototype;
-    transformableProto.transform = null;
-
-    /**
-     * 判断是否需要有坐标变换
-     * 如果有坐标变换, 则从position, rotation, scale以及父节点的transform计算出自身的transform矩阵
-     */
-    transformableProto.needLocalTransform = function () {
-        return isNotAroundZero(this.rotation)
-            || isNotAroundZero(this.position[0])
-            || isNotAroundZero(this.position[1])
-            || isNotAroundZero(this.scale[0] - 1)
-            || isNotAroundZero(this.scale[1] - 1);
-    };
-
-    transformableProto.updateTransform = function () {
-        var parent = this.parent;
-        var parentHasTransform = parent && parent.transform;
-        var needLocalTransform = this.needLocalTransform();
-
-        var m = this.transform;
-        if (!(needLocalTransform || parentHasTransform)) {
-            m && mIdentity(m);
-            return;
-        }
-
-        m = m || matrix.create();
-
-        if (needLocalTransform) {
-            this.getLocalTransform(m);
-        }
-        else {
-            mIdentity(m);
-        }
-
-        // 应用父节点变换
-        if (parentHasTransform) {
-            if (needLocalTransform) {
-                matrix.mul(m, parent.transform, m);
-            }
-            else {
-                matrix.copy(m, parent.transform);
-            }
-        }
-        // 保存这个变换矩阵
-        this.transform = m;
-
-        this.invTransform = this.invTransform || matrix.create();
-        matrix.invert(this.invTransform, m);
-    };
-
-    transformableProto.getLocalTransform = function (m) {
-        m = m || [];
-        mIdentity(m);
-
-        var origin = this.origin;
-
-        var scale = this.scale;
-        var rotation = this.rotation;
-        var position = this.position;
-        if (origin) {
-            // Translate to origin
-            m[4] -= origin[0];
-            m[5] -= origin[1];
-        }
-        matrix.scale(m, m, scale);
-        if (rotation) {
-            matrix.rotate(m, m, rotation);
-        }
-        if (origin) {
-            // Translate back from origin
-            m[4] += origin[0];
-            m[5] += origin[1];
-        }
-
-        m[4] += position[0];
-        m[5] += position[1];
-
-        return m;
-    };
-    /**
-     * 将自己的transform应用到context上
-     * @param {Context2D} ctx
-     */
-    transformableProto.setTransform = function (ctx) {
-        var m = this.transform;
-        var dpr = ctx.dpr || 1;
-        if (m) {
-            ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * m[4], dpr * m[5]);
-        }
-        else {
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        }
-    };
-
-    transformableProto.restoreTransform = function (ctx) {
-        var m = this.transform;
-        var dpr = ctx.dpr || 1;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-
-    var tmpTransform = [];
-
-    /**
-     * 分解`transform`矩阵到`position`, `rotation`, `scale`
-     */
-    transformableProto.decomposeTransform = function () {
-        if (!this.transform) {
-            return;
-        }
-        var parent = this.parent;
-        var m = this.transform;
-        if (parent && parent.transform) {
-            // Get local transform and decompose them to position, scale, rotation
-            matrix.mul(tmpTransform, parent.invTransform, m);
-            m = tmpTransform;
-        }
-        var sx = m[0] * m[0] + m[1] * m[1];
-        var sy = m[2] * m[2] + m[3] * m[3];
-        var position = this.position;
-        var scale = this.scale;
-        if (isNotAroundZero(sx - 1)) {
-            sx = Math.sqrt(sx);
-        }
-        if (isNotAroundZero(sy - 1)) {
-            sy = Math.sqrt(sy);
-        }
-        if (m[0] < 0) {
-            sx = -sx;
-        }
-        if (m[3] < 0) {
-            sy = -sy;
-        }
-        position[0] = m[4];
-        position[1] = m[5];
-        scale[0] = sx;
-        scale[1] = sy;
-        this.rotation = Math.atan2(-m[1] / sy, m[0] / sx);
-    };
-
-    /**
-     * Get global scale
-     * @return {Array.<number>}
-     */
-    transformableProto.getGlobalScale = function () {
-        var m = this.transform;
-        if (!m) {
-            return [1, 1];
-        }
-        var sx = Math.sqrt(m[0] * m[0] + m[1] * m[1]);
-        var sy = Math.sqrt(m[2] * m[2] + m[3] * m[3]);
-        if (m[0] < 0) {
-            sx = -sx;
-        }
-        if (m[3] < 0) {
-            sy = -sy;
-        }
-        return [sx, sy];
-    };
-    /**
-     * 变换坐标位置到 shape 的局部坐标空间
-     * @method
-     * @param {number} x
-     * @param {number} y
-     * @return {Array.<number>}
-     */
-    transformableProto.transformCoordToLocal = function (x, y) {
-        var v2 = [x, y];
-        var invTransform = this.invTransform;
-        if (invTransform) {
-            vector.applyTransform(v2, v2, invTransform);
-        }
-        return v2;
-    };
-
-    /**
-     * 变换局部坐标位置到全局坐标空间
-     * @method
-     * @param {number} x
-     * @param {number} y
-     * @return {Array.<number>}
-     */
-    transformableProto.transformCoordToGlobal = function (x, y) {
-        var v2 = [x, y];
-        var transform = this.transform;
-        if (transform) {
-            vector.applyTransform(v2, v2, transform);
-        }
-        return v2;
-    };
-
-    return Transformable;
 });
 /**
  * @module frender/tool/color
@@ -15284,18 +15284,15 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 			return this._rect;
 		},
 		setTransform: function( transform ) {
-			if(!transform) return;
-			var shape = this._rect.shape;
-			if(Object.prototype.toString.call(shape) != '[object Object]') return;
-			shape.x += transform[4];
-			shape.y += transform[5];
-			//console.log(this._rect);
-			this._rect.setShape('x', shape.x);
-			this._rect.setShape('y', shape.y);
-			this._rectCaps.forEach(function(v){
-				v.setShape('cx', v.shape.x + transform[4]);
-				v.setShape('cy', v.shape.y + transform[5]);
-			})
+			// if(!transform) return;
+			// var shape = this._rect.shape;
+			// if(Object.prototype.toString.call(shape) != '[object Object]') return;
+			// this._rect.setShape('x', shape.x += transform[4]);
+			// this._rect.setShape('y', shape.y += transform[5]);
+			// this._rectCaps.forEach(function(v){
+			// 	v.setShape('cx', v.shape.cx + transform[4]);
+			// 	v.setShape('cy', v.shape.cy + transform[5]);
+			// })
 		},
 		getTransform: function() {
 			return this._rect.transform;

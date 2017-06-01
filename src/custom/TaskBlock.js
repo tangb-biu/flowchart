@@ -164,18 +164,15 @@ define('frender/custom/TaskBlock',['require','../graphic/shape/Polygon','../grap
 			return this._rect;
 		},
 		setTransform: function( transform ) {
-			if(!transform) return;
-			var shape = this._rect.shape;
-			if(Object.prototype.toString.call(shape) != '[object Object]') return;
-			shape.x += transform[4];
-			shape.y += transform[5];
-			//console.log(this._rect);
-			this._rect.setShape('x', shape.x);
-			this._rect.setShape('y', shape.y);
-			this._rectCaps.forEach(function(v){
-				v.setShape('cx', v.shape.x + transform[4]);
-				v.setShape('cy', v.shape.y + transform[5]);
-			})
+			// if(!transform) return;
+			// var shape = this._rect.shape;
+			// if(Object.prototype.toString.call(shape) != '[object Object]') return;
+			// this._rect.setShape('x', shape.x += transform[4]);
+			// this._rect.setShape('y', shape.y += transform[5]);
+			// this._rectCaps.forEach(function(v){
+			// 	v.setShape('cx', v.shape.cx + transform[4]);
+			// 	v.setShape('cy', v.shape.cy + transform[5]);
+			// })
 		},
 		getTransform: function() {
 			return this._rect.transform;
